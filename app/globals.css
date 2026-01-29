@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* ---- Theme tokens ---- */
+@theme inline {
+  /* Backgrounds */
+  --color-bg: #0e0e11;
+  --color-surface: #18181d;
+  --color-surface-muted: #1f1f25;
+
+  /* Borders */
+  --color-border: #2a2a32;
+
+  /* Text */
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+
+  /* Accents */
+  --color-accent: #ff6b6b;   /* coral */
+  --color-accent-soft: #fca5a5;
+
+  --color-highlight: #fbbf24; /* amber */
+}
+
+/* ---- Base styles ---- */
+@layer base {
+  html {
+      background:
+        radial-gradient(
+          70% 50% at 50% 15%,
+          rgba(255, 255, 255, 0.035),
+          transparent 60%
+        ),
+        radial-gradient(
+          100% 80% at 50% 100%,
+          rgba(175, 35, 35, 0.4),
+          transparent 70%
+        ),
+        var(--color-bg);
+    color: var(--color-text-primary);
+  }
+
+  body {
+    @apply antialiased;
+  }
+}
