@@ -1,27 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { PlusIcon, GearIcon } from '@radix-ui/react-icons';
-import { useEffect, useMemo, useState } from 'react';
-import AppTaskPanel from '@/components/app-task-panel';
+import { GearIcon } from '@radix-ui/react-icons';
+import { useEffect, useState } from 'react';
 import IntegrationMenu from '@/components/integration-panel';
-import LinearTaskPanel from '@/components/linear-task-panel';
-import GithubTaskPanel from '@/components/github-task-panel';
-import { TaskSources, type TaskSource } from '@/lib/task-source';
-
-type LinearProject = {
-  id: string;
-  name: string;
-  description?: string | null;
-  url: string;
-  state: string;
-  progress: number;
-  icon?: string | null;
-  color?: string | null;
-  targetDate?: string | null;
-  startDate?: string | null;
-};
+import UnifiedProjectsList from '@/components/unified-projects-list';
+import { 
+  TaskSources, 
+  type TaskSource, 
+  type UnifiedProject, 
+  type LinearProject,
+  normalizeLinearProject 
+} from '@/lib/task-source';
 
 type IndexPageClientProps = {
   initialIntegration: TaskSource;
@@ -32,81 +22,61 @@ export default function IndexPageClient({
   initialIntegration,
   initialSearchParams
 }: IndexPageClientProps) {
-  const router = useRouter();
-  const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const [linearProjects, setLinearProjects] = useState<LinearProject[]>([]);
-  const [linearError, setLinearError] = useState<string | null>(null);
-  const [linearNeedsConnection, setLinearNeedsConnection] = useState(false);
-  const [activeIntegration, setActiveIntegration] = useState<TaskSource>(initialIntegration);
-  const [totalHours, setTotalHours] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentSearchParams, setCurrentSearchParams] = useState(
-    () => new URLSearchParams(initialSearchParams)
-  );
+  const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeIntegration, setActiveIntegration] = useState<TaskSource | null>(null);
 
   const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
     setActiveIntegration(selectedIntegration);
-
-    const nextParams = new URLSearchParams(currentSearchParams.toString());
-    nextParams.set('integration', selectedIntegration);
-    setCurrentSearchParams(nextParams);
-    router.replace(`/?${nextParams.toString()}`);
+    // Keep the integration menu for future use (e.g., filtering)
   };
 
   useEffect(() => {
-    if (activeIntegration !== TaskSources.Linear) {
-      return;
-    }
-
     const abortController = new AbortController();
 
-    async function loadLinearProjects() {
+    async function loadAllProjects() {
       setIsLoading(true);
-      setLinearError(null);
-      setLinearNeedsConnection(false);
+      setError(null);
+      
+      const projectsFromAllSources: UnifiedProject[] = [];
 
+      // Fetch Linear projects
       try {
-        const response = await fetch('/api/linear/projects', {
+        const linearResponse = await fetch('/api/linear/projects', {
           signal: abortController.signal
         });
-        const payload = await response.json();
 
-        if (!response.ok) {
-          if (response.status === 401) {
-            setLinearNeedsConnection(true);
-            setLinearProjects([]);
-            return;
-          }
-          throw new Error(payload?.error ?? 'Failed to load Linear projects.');
+        if (linearResponse.ok) {
+          const linearPayload = await linearResponse.json();
+          const linearProjects: LinearProject[] = linearPayload.projects ?? [];
+          const normalizedLinear = linearProjects.map(normalizeLinearProject);
+          projectsFromAllSources.push(...normalizedLinear);
+        } else if (linearResponse.status !== 401) {
+          // Ignore 401 (not connected), but log other errors
+          console.warn('Failed to load Linear projects:', linearResponse.status);
         }
-
-        setLinearProjects(payload.projects ?? []);
       } catch (error) {
         if (!abortController.signal.aborted) {
-          const message = error instanceof Error ? error.message : 'Failed to load Linear projects.';
-          setLinearError(message);
+          console.warn('Error loading Linear projects:', error);
         }
-      } finally {
-        if (!abortController.signal.aborted) {
-          setIsLoading(false);
-        }
+      }
+
+      // TODO: Add GitHub projects fetch when API is ready
+      // TODO: Add App projects fetch when API is ready
+
+      if (!abortController.signal.aborted) {
+        setAllProjects(projectsFromAllSources);
+        setIsLoading(false);
       }
     }
 
-    loadLinearProjects();
+    loadAllProjects();
 
     return () => {
       abortController.abort();
     };
-  }, [activeIntegration]);
-
-  const visibleTasks = useMemo(() => {
-    if (activeIntegration !== TaskSources.Linear) {
-      return [];
-    }
-
-    return linearProjects;
-  }, [activeIntegration, linearProjects]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -121,58 +91,22 @@ export default function IndexPageClient({
       </div>
 
       <div className="flex-1 flex flex-col mt-8 sm:mt-12">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] h-full gap-2 bg-background text-foreground">
-          <div className={`h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4 transition-all duration-300 ease-in-out ${!isPanelVisible ? 'lg:col-span-2' : ''}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] h-full gap-2 bg-background text-foreground">
+          <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4">
             <div className="flex-shrink-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Today's Plan</h2>
-              <p className="text-zinc-400 mt-1 text-sm sm:text-base">Total hours committed today: {totalHours.toFixed(1)}h</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Projects</h2>
+              <p className="text-zinc-400 mt-1 text-sm sm:text-base">
+                All projects your are involved in.
+              </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="text-muted-foreground">Loading tasks...</div>
-              ) : linearError ? (
-                <div className="text-sm text-red-400">{linearError}</div>
-              ) : (
-                // <TaskList
-                //   tasks={dailyPlanTasks}
-                //   onCompleteTask={completeTask}
-                //   onMoveToBacklog={handleRemoveFromDailyPlan}
-                // />
-                <div className="text-muted-foreground">Tasks list</div>
-              )}
-            </div>
-
-            <div className="flex-shrink-0">
-              <button
-                // onClick={() => navigate("/add-task")}
-                // variant="outline"
-                className="w-full flex items-center py-1 px-3 rounded-md bg-[#1e1e1e] hover:bg-[#252525] text-zinc-400 hover:text-zinc-300 transition-colors border border-[#333] text-sm sm:text-base"
-              >
-                <PlusIcon className="mr-2 size-4" />
-                Add new task
-              </button>
-            </div>
-          </div>
-
-          <div className={`overflow-y-auto transition-all duration-300 ease-in-out ${isPanelVisible
-              ? 'opacity-100 translate-x-0 w-full lg:w-[432px] xl:w-[432px]'
-              : 'opacity-0 translate-x-full w-0 hidden lg:block'
-            }`}>
-            {activeIntegration === TaskSources.Github && (
-              <GithubTaskPanel />
-            )}
-            {activeIntegration === TaskSources.Linear && (
-              <LinearTaskPanel
-                projects={visibleTasks}
+            <div className="flex-1 overflow-y-auto pb-4">
+              <UnifiedProjectsList
+                projects={allProjects}
                 isLoading={isLoading}
-                error={linearError}
-                needsConnection={linearNeedsConnection}
+                error={error}
               />
-            )}
-            {activeIntegration === TaskSources.App && (
-              <AppTaskPanel />
-            )}
+            </div>
           </div>
 
           <div className="hidden lg:block">
