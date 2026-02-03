@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { PlusIcon, CodeIcon } from "@radix-ui/react-icons";
+import { PlusIcon, GearIcon } from "@radix-ui/react-icons";
 import { useEffect, useMemo, useState } from 'react';
 import AppTaskPanel from "@/components/app-task-panel";
 import IntegrationMenu from "@/components/integration-panel";
@@ -66,8 +66,6 @@ export default function Index() {
   const [activeIntegration, setActiveIntegration] = useState<TaskSource | null>(TaskSource.App);
   const [totalHours, setTotalHours] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const linearUserEmail = "nicolas.baglivo@gmail.com";
-
   const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
     setActiveIntegration(selectedIntegration);
   };
@@ -84,7 +82,7 @@ export default function Index() {
       setLinearError(null);
 
       try {
-        const response = await fetch(`/api/linear/issues?email=${encodeURIComponent(linearUserEmail)}`, {
+        const response = await fetch(`/api/linear/issues`, {
           signal: abortController.signal
         });
         const payload = await response.json();
@@ -111,7 +109,7 @@ export default function Index() {
     return () => {
       abortController.abort();
     };
-  }, [activeIntegration, linearUserEmail]);
+  }, [activeIntegration]);
 
   const visibleTasks = useMemo(() => {
     if (activeIntegration !== TaskSource.Linear) {
@@ -129,7 +127,7 @@ export default function Index() {
           className="p-2 rounded-full hover:bg-[#252525] transition-colors"
           title="Settings"
         >
-          <CodeIcon className="text-zinc-400 size-4" />
+          <GearIcon className="text-zinc-400 size-4" />
         </Link>
       </div>
 
