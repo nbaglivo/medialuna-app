@@ -25,7 +25,7 @@
 /* ---- Base styles ---- */
 @layer base {
   html {
-      background:
+      /* background:
         radial-gradient(
           70% 50% at 50% 15%,
           rgba(255, 255, 255, 0.035),
@@ -36,7 +36,8 @@
           rgba(175, 35, 35, 0.4),
           transparent 70%
         ),
-        var(--color-bg);
+        var(--color-bg); */
+    background: var(--color-bg);
     color: var(--color-text-primary);
   }
 
