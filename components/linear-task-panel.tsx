@@ -10,6 +10,9 @@ type LinearIssue = {
   state?: {
     name: string;
   } | null;
+  project?: {
+    name: string;
+  } | null;
 };
 
 type LinearTaskPanelProps = {
@@ -53,9 +56,10 @@ export default function LinearTaskPanel({ issues, isLoading, error }: LinearTask
                     <span className="text-xs text-zinc-400">{issue.state.name}</span>
                   )}
                 </div>
-                {issue.estimate != null && (
-                  <div className="text-xs text-zinc-500 mt-1">Estimate: {issue.estimate}</div>
-                )}
+                <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+                  {issue.project?.name && <span>Project: {issue.project.name}</span>}
+                  {issue.estimate != null && <span>Estimate: {issue.estimate}</span>}
+                </div>
               </a>
             ))}
           </div>

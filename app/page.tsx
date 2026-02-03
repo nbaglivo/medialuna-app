@@ -58,6 +58,9 @@ type LinearIssue = {
   state?: {
     name: string;
   } | null;
+  project?: {
+    name: string;
+  } | null;
 };
 
 export default function Index() {

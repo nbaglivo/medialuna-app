@@ -13,9 +13,11 @@ type LinearIssue = {
   state?: {
     name: string;
   } | null;
+  project?: {
+    name: string;
+  } | null;
 };
 
-const DEFAULT_EMAIL = "nicolas.baglivo@gmail.com";
 const TOKEN_COOKIE = "linear_access_token";
 const ISSUE_STATE_COOKIE = "linear_issue_state";
 const ISSUE_QUERY_COOKIE = "linear_issue_query";
@@ -31,7 +33,7 @@ function createLinearClient(token: string) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const email = url.searchParams.get("email") ?? DEFAULT_EMAIL;
+  const email = url.searchParams.get("email");
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get(TOKEN_COOKIE)?.value;
   const stateFilter = cookieStore.get(ISSUE_STATE_COOKIE)?.value?.trim() ?? "";
@@ -108,7 +110,8 @@ export async function GET(request: Request) {
       url: issue.url,
       priority: issue.priority ?? null,
       estimate: issue.estimate ?? null,
-      state: issue.state ? { name: issue.state.name } : null
+      state: issue.state ? { name: issue.state.name } : null,
+      project: issue.project ? { name: issue.project.name } : null
     }));
 
     return Response.json({ user, issues, connected: usesOAuthToken });
