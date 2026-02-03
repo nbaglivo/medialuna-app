@@ -37,19 +37,19 @@ export default async function ConfigPage() {
                 {isConnected ? "Connected" : "Not connected"}
               </span>
               {isConnected ? (
-                <Link
+                <a
                   href="/api/linear/oauth/disconnect"
                   className="px-3 py-2 rounded-md bg-[#1e1e1e] hover:bg-[#252525] text-zinc-300 text-sm border border-[#333] transition-colors"
                 >
                   Disconnect
-                </Link>
+                </a>
               ) : (
-                <Link
+                <a
                   href="/api/linear/oauth/start"
                   className="px-3 py-2 rounded-md bg-white text-black text-sm font-medium hover:bg-zinc-200 transition-colors"
                 >
                   Connect Linear
-                </Link>
+                </a>
               )}
             </div>
 
