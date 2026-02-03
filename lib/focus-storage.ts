@@ -1,9 +1,32 @@
 const FOCUS_STORAGE_KEY = 'medialuna_focus_projects';
+const WORK_LOG_STORAGE_KEY = 'medialuna_work_log';
 
 export type FocusSession = {
   projectIds: string[];
   timestamp: number;
 };
+
+export type WorkLogItem = {
+  id: string;
+  description: string;
+  timestamp: number;
+  projectId: string | null; // null for unplanned work
+  unplannedReason?: string;
+};
+
+export type WorkLogSession = {
+  items: WorkLogItem[];
+  timestamp: number;
+};
+
+export const UNPLANNED_REASONS = [
+  'Urgent bug',
+  'Support request',
+  'Meeting',
+  'Other'
+] as const;
+
+export type UnplannedReason = typeof UNPLANNED_REASONS[number];
 
 /**
  * Get the midnight timestamp for today (00:00:00)
@@ -100,4 +123,103 @@ export function formatTimeUntilMidnight(): string {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
+}
+
+// ============================================================================
+// Work Log Functions
+// ============================================================================
+
+/**
+ * Save work log session to local storage
+ */
+function saveWorkLogSession(session: WorkLogSession): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WORK_LOG_STORAGE_KEY, JSON.stringify(session));
+}
+
+/**
+ * Get the current work log session from local storage
+ * Returns null if no session exists or if expired
+ */
+export function getWorkLogSession(): WorkLogSession | null {
+  if (typeof window === 'undefined') return null;
+  
+  const stored = localStorage.getItem(WORK_LOG_STORAGE_KEY);
+  if (!stored) return null;
+  
+  try {
+    const session: WorkLogSession = JSON.parse(stored);
+    
+    // Check if expired (past midnight from when it was created)
+    if (isFocusExpired(session.timestamp)) {
+      clearWorkLog();
+      return null;
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to parse work log session:', error);
+    clearWorkLog();
+    return null;
+  }
+}
+
+/**
+ * Get all work log items for today
+ */
+export function getWorkLog(): WorkLogItem[] {
+  const session = getWorkLogSession();
+  return session?.items ?? [];
+}
+
+/**
+ * Add a new work log item
+ */
+export function addWorkLogItem(item: Omit<WorkLogItem, 'id' | 'timestamp'>): WorkLogItem {
+  if (typeof window === 'undefined') {
+    throw new Error('Cannot add work log item on server side');
+  }
+  
+  const newItem: WorkLogItem = {
+    ...item,
+    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: Date.now(),
+  };
+  
+  let session = getWorkLogSession();
+  
+  if (!session) {
+    // Create new session
+    session = {
+      items: [newItem],
+      timestamp: Date.now(),
+    };
+  } else {
+    // Add to existing session
+    session.items.push(newItem);
+  }
+  
+  saveWorkLogSession(session);
+  return newItem;
+}
+
+/**
+ * Remove a work log item by ID
+ */
+export function removeWorkLogItem(id: string): void {
+  if (typeof window === 'undefined') return;
+  
+  const session = getWorkLogSession();
+  if (!session) return;
+  
+  session.items = session.items.filter(item => item.id !== id);
+  saveWorkLogSession(session);
+}
+
+/**
+ * Clear the work log from storage
+ */
+export function clearWorkLog(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(WORK_LOG_STORAGE_KEY);
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import UnifiedProjectsList from '@/components/unified-projects-list';
+import WorkLog from '@/components/work-log';
 import { 
   type UnifiedProject, 
   type LinearProject,
@@ -14,7 +15,8 @@ import {
   getFocusSession, 
   clearFocusSession, 
   formatTimeUntilMidnight,
-  isFocusExpired
+  isFocusExpired,
+  clearWorkLog
 } from '@/lib/focus-storage';
 
 export default function FocusPageClient() {
@@ -114,6 +116,7 @@ export default function FocusPageClient() {
 
   const handleChangeFocus = () => {
     clearFocusSession();
+    clearWorkLog();
     router.push('/');
   };
 
@@ -133,7 +136,7 @@ export default function FocusPageClient() {
                   <ArrowLeftIcon className="text-zinc-400 size-4" />
                 </Link>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">Today's Focus</h1>
+                  <h1 className="text-2xl font-bold text-white">Today's work</h1>
                   <p className="text-sm text-zinc-400 mt-0.5">
                     {focusedProjects.length} project{focusedProjects.length !== 1 ? 's' : ''} • Resets in {timeRemaining}
                   </p>
@@ -178,11 +181,28 @@ export default function FocusPageClient() {
               </button>
             </div>
           ) : (
-            <UnifiedProjectsList
-              projects={focusedProjects}
-              isLoading={false}
-              error={null}
-            />
+            <div className="space-y-8">
+              {/* Focused Projects Section */}
+              <div>
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-white">Focus Projects</h2>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    Projects you're focusing on today
+                  </p>
+                </div>
+                <UnifiedProjectsList
+                  projects={focusedProjects}
+                  isLoading={false}
+                  error={null}
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-[#333]" />
+
+              {/* Work Log Section */}
+              <WorkLog focusedProjects={focusedProjects} />
+            </div>
           )}
         </div>
       </div>
