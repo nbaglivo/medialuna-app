@@ -1,6 +1,7 @@
 'use client';
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PlusIcon, GearIcon } from "@radix-ui/react-icons";
 import { useEffect, useMemo, useState } from 'react';
 import AppTaskPanel from "@/components/app-task-panel";
@@ -60,6 +61,8 @@ type LinearIssue = {
 };
 
 export default function Index() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [linearError, setLinearError] = useState<string | null>(null);
@@ -68,7 +71,22 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
   const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
     setActiveIntegration(selectedIntegration);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("integration", selectedIntegration);
+    router.replace(`/?${nextParams.toString()}`);
   };
+
+  useEffect(() => {
+    const integrationParam = searchParams.get("integration");
+    if (
+      integrationParam === TaskSource.App ||
+      integrationParam === TaskSource.Github ||
+      integrationParam === TaskSource.Linear
+    ) {
+      setActiveIntegration(integrationParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (activeIntegration !== TaskSource.Linear) {
