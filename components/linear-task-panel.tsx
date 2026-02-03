@@ -1,4 +1,5 @@
 import { CircleIcon } from "@radix-ui/react-icons";
+import Link from "next/link";
 
 type LinearIssue = {
   id: string;
@@ -19,9 +20,15 @@ type LinearTaskPanelProps = {
   issues: LinearIssue[];
   isLoading: boolean;
   error: string | null;
+  needsConnection: boolean;
 };
 
-export default function LinearTaskPanel({ issues, isLoading, error }: LinearTaskPanelProps) {
+export default function LinearTaskPanel({
+  issues,
+  isLoading,
+  error,
+  needsConnection
+}: LinearTaskPanelProps) {
   return (
     <div className="w-[432px] h-full bg-background border-l border-border flex flex-col">
       <div className="p-4 border-b border-border flex items-center gap-2">
@@ -33,6 +40,15 @@ export default function LinearTaskPanel({ issues, isLoading, error }: LinearTask
         {isLoading ? (
           <div className="text-muted-foreground flex items-center justify-center h-full">
             <CircleIcon className="size-4 animate-spin" />
+          </div>
+        ) : needsConnection ? (
+          <div className="space-y-2">
+            <Link
+              href="/config"
+              className="inline-flex items-center rounded-md text-muted-foreground text-sm font-medium px-3 py-2 underline transition-colors"
+            >
+              Configure Linear Integration
+            </Link>
           </div>
         ) : error ? (
           <div className="text-sm text-red-400">{error}</div>

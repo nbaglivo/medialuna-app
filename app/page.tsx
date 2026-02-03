@@ -69,6 +69,7 @@ export default function Index() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [linearError, setLinearError] = useState<string | null>(null);
+  const [linearNeedsConnection, setLinearNeedsConnection] = useState(false);
   const [activeIntegration, setActiveIntegration] = useState<TaskSource | null>(TaskSource.App);
   const [totalHours, setTotalHours] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,6 +102,7 @@ export default function Index() {
     async function loadLinearIssues() {
       setIsLoading(true);
       setLinearError(null);
+      setLinearNeedsConnection(false);
 
       try {
         const response = await fetch(`/api/linear/issues`, {
@@ -109,6 +111,11 @@ export default function Index() {
         const payload = await response.json();
 
         if (!response.ok) {
+          if (response.status === 401) {
+            setLinearNeedsConnection(true);
+            setLinearIssues([]);
+            return;
+          }
           throw new Error(payload?.error ?? 'Failed to load Linear issues.');
         }
 
@@ -195,7 +202,12 @@ export default function Index() {
               <GithubTaskPanel />
             )}
             {activeIntegration === TaskSource.Linear && (
-              <LinearTaskPanel issues={visibleTasks} isLoading={isLoading} error={linearError} />
+              <LinearTaskPanel
+                issues={visibleTasks}
+                isLoading={isLoading}
+                error={linearError}
+                needsConnection={linearNeedsConnection}
+              />
             )}
             {activeIntegration === TaskSource.App && (
               <AppTaskPanel />

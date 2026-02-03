@@ -53,6 +53,10 @@ export default async function ConfigPage() {
               )}
             </div>
 
+            <div className="text-xs text-zinc-500 mt-2">
+              <Link href="https://linear.app/settings/integrations" target="_blank" className="underline">Learn more</Link>
+            </div>
+
             <div className="border-t border-[#262626] pt-4 space-y-3">
               <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-500">Issue Filters</h3>
               <form action="/api/linear/settings" method="post" className="space-y-3">
@@ -113,10 +117,6 @@ export default async function ConfigPage() {
               </form>
             </div>
           </div>
-        </div>
-
-        <div className="text-xs text-zinc-500">
-          <Link href="https://linear.app/settings/integrations" target="_blank" className="underline">Learn more</Link>
         </div>
       </div>
     </div>
