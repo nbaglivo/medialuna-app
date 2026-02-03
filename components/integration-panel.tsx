@@ -1,20 +1,14 @@
-import { GitHubLogoIcon, CheckIcon } from "@radix-ui/react-icons";
-import Image from "next/image";
+import { GitHubLogoIcon } from '@radix-ui/react-icons';
+import { TaskSources, type TaskSource } from '@/lib/task-source';
 
 function cn(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-enum TaskSource {
-  Github = 'github',
-  Linear = 'linear',
-  App = 'app'
-}
-
 type IntegrationMenuProps = {
   onItemSelected: (selectedIntegration: TaskSource) => void;
   activeIntegration: TaskSource | null;
-}
+};
 
 const IntegrationMenu = ({
   onItemSelected,
@@ -26,15 +20,15 @@ const IntegrationMenu = ({
             <button
               className={cn(
                 "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
-                activeIntegration === TaskSource.App
+                activeIntegration === TaskSources.App
                   ? "bg-zinc-700"
                   : "text-zinc-400 hover:bg-[#262626] hover:text-zinc-300"
               )}
-              onClick={() => onItemSelected(TaskSource.App)}
+              onClick={() => onItemSelected(TaskSources.App)}
               aria-label="In-app tasks"
             >
               <img src="/logo-transparent.png" alt="medialuna icon" width={32} height={32} className="" />
-              {activeIntegration === TaskSource.App && (
+              {activeIntegration === TaskSources.App && (
                 <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-purple-500 rounded-r-sm" />
               )}
             </button>
@@ -42,15 +36,15 @@ const IntegrationMenu = ({
             <button
               className={cn(
                 "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
-                activeIntegration === TaskSource.Github
+                activeIntegration === TaskSources.Github
                   ? "bg-zinc-700"
                   : "text-zinc-400 hover:bg-[#262626] hover:text-zinc-300"
               )}
-              onClick={() => onItemSelected(TaskSource.Github)}
+              onClick={() => onItemSelected(TaskSources.Github)}
               aria-label="GitHub Integration"
             >
               <GitHubLogoIcon className="size-4" />
-              {activeIntegration === TaskSource.Github && (
+              {activeIntegration === TaskSources.Github && (
                 <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-pink-500 rounded-r-sm" />
               )}
             </button>
@@ -58,17 +52,17 @@ const IntegrationMenu = ({
             <button
               className={cn(
                 "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
-                activeIntegration === TaskSource.Linear
+                activeIntegration === TaskSources.Linear
                   ? "bg-zinc-700"
                   : "text-zinc-400 hover:bg-[#262626] hover:text-zinc-300"
               )}
-              onClick={() => onItemSelected(TaskSource.Linear)}
+              onClick={() => onItemSelected(TaskSources.Linear)}
               aria-label="Linear Integration"
             >
               <div className="font-bold">
                 <img src="https://linear.app/favicon.ico" alt="Linear icon" width={16} height={16} />
               </div>
-              {activeIntegration === TaskSource.Linear && (
+              {activeIntegration === TaskSources.Linear && (
                 <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-indigo-500 rounded-r-sm" />
               )}
             </button>
