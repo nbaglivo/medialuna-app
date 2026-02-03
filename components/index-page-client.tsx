@@ -10,19 +10,17 @@ import LinearTaskPanel from '@/components/linear-task-panel';
 import GithubTaskPanel from '@/components/github-task-panel';
 import { TaskSources, type TaskSource } from '@/lib/task-source';
 
-type LinearIssue = {
+type LinearProject = {
   id: string;
-  identifier: string;
-  title: string;
+  name: string;
+  description?: string | null;
   url: string;
-  priority?: number | null;
-  estimate?: number | null;
-  state?: {
-    name: string;
-  } | null;
-  project?: {
-    name: string;
-  } | null;
+  state: string;
+  progress: number;
+  icon?: string | null;
+  color?: string | null;
+  targetDate?: string | null;
+  startDate?: string | null;
 };
 
 type IndexPageClientProps = {
@@ -36,7 +34,7 @@ export default function IndexPageClient({
 }: IndexPageClientProps) {
   const router = useRouter();
   const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  const [linearProjects, setLinearProjects] = useState<LinearProject[]>([]);
   const [linearError, setLinearError] = useState<string | null>(null);
   const [linearNeedsConnection, setLinearNeedsConnection] = useState(false);
   const [activeIntegration, setActiveIntegration] = useState<TaskSource>(initialIntegration);
@@ -62,13 +60,13 @@ export default function IndexPageClient({
 
     const abortController = new AbortController();
 
-    async function loadLinearIssues() {
+    async function loadLinearProjects() {
       setIsLoading(true);
       setLinearError(null);
       setLinearNeedsConnection(false);
 
       try {
-        const response = await fetch('/api/linear/issues', {
+        const response = await fetch('/api/linear/projects', {
           signal: abortController.signal
         });
         const payload = await response.json();
@@ -76,16 +74,16 @@ export default function IndexPageClient({
         if (!response.ok) {
           if (response.status === 401) {
             setLinearNeedsConnection(true);
-            setLinearIssues([]);
+            setLinearProjects([]);
             return;
           }
-          throw new Error(payload?.error ?? 'Failed to load Linear issues.');
+          throw new Error(payload?.error ?? 'Failed to load Linear projects.');
         }
 
-        setLinearIssues(payload.issues ?? []);
+        setLinearProjects(payload.projects ?? []);
       } catch (error) {
         if (!abortController.signal.aborted) {
-          const message = error instanceof Error ? error.message : 'Failed to load Linear issues.';
+          const message = error instanceof Error ? error.message : 'Failed to load Linear projects.';
           setLinearError(message);
         }
       } finally {
@@ -95,7 +93,7 @@ export default function IndexPageClient({
       }
     }
 
-    loadLinearIssues();
+    loadLinearProjects();
 
     return () => {
       abortController.abort();
@@ -107,8 +105,8 @@ export default function IndexPageClient({
       return [];
     }
 
-    return linearIssues;
-  }, [activeIntegration, linearIssues]);
+    return linearProjects;
+  }, [activeIntegration, linearProjects]);
 
   return (
     <div className="flex flex-col h-full">
@@ -166,7 +164,7 @@ export default function IndexPageClient({
             )}
             {activeIntegration === TaskSources.Linear && (
               <LinearTaskPanel
-                issues={visibleTasks}
+                projects={visibleTasks}
                 isLoading={isLoading}
                 error={linearError}
                 needsConnection={linearNeedsConnection}

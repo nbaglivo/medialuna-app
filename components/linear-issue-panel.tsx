@@ -1,28 +1,30 @@
 import { CircleIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
 
-type LinearProject = {
+type LinearIssue = {
   id: string;
-  name: string;
-  description?: string | null;
+  identifier: string;
+  title: string;
   url: string;
-  state: string;
-  progress: number;
-  icon?: string | null;
-  color?: string | null;
-  targetDate?: string | null;
-  startDate?: string | null;
+  priority?: number | null;
+  estimate?: number | null;
+  state?: {
+    name: string;
+  } | null;
+  project?: {
+    name: string;
+  } | null;
 };
 
 type LinearTaskPanelProps = {
-  projects: LinearProject[];
+  issues: LinearIssue[];
   isLoading: boolean;
   error: string | null;
   needsConnection: boolean;
 };
 
 export default function LinearTaskPanel({
-  projects,
+  issues,
   isLoading,
   error,
   needsConnection
@@ -31,7 +33,7 @@ export default function LinearTaskPanel({
     <div className="w-[432px] h-full bg-background border-l border-border flex flex-col">
       <div className="p-4 border-b border-border flex items-center gap-2">
         <img src="https://linear.app/favicon.ico" alt="Linear icon" width={16} height={16} />
-        <h2 className="text-lg font-semibold">Linear Projects</h2>
+        <h2 className="text-lg font-semibold">Linear Tasks</h2>
       </div>
 
       <div className="flex-1 overflow-auto p-3">
@@ -50,42 +52,29 @@ export default function LinearTaskPanel({
           </div>
         ) : error ? (
           <div className="text-sm text-red-400">{error}</div>
-        ) : projects.length === 0 ? (
-          <div className="text-muted-foreground">No Linear projects found.</div>
+        ) : issues.length === 0 ? (
+          <div className="text-muted-foreground">No Linear issues assigned.</div>
         ) : (
           <div className="space-y-2">
-            {projects.map((project) => (
+            {issues.map((issue) => (
               <a
-                key={project.id}
-                href={project.url}
+                key={issue.id}
+                href={issue.url}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-md border border-[#333] bg-[#1e1e1e] px-3 py-2 hover:bg-[#252525] transition-colors"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    {project.icon && (
-                      <span className="text-base">{project.icon}</span>
-                    )}
-                    <div className="text-sm font-medium text-white">
-                      {project.name}
-                    </div>
+                  <div className="text-sm font-medium text-white">
+                    {issue.identifier} · {issue.title}
                   </div>
-                  <span className="text-xs text-zinc-400 capitalize">{project.state}</span>
-                </div>
-                {project.description && (
-                  <div className="mt-1 text-xs text-zinc-500 line-clamp-2">
-                    {project.description}
-                  </div>
-                )}
-                <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
-                  <div className="flex items-center gap-1">
-                    <span>Progress:</span>
-                    <span className="text-zinc-400">{Math.round(project.progress * 100)}%</span>
-                  </div>
-                  {project.targetDate && (
-                    <span>Due: {new Date(project.targetDate).toLocaleDateString()}</span>
+                  {issue.state?.name && (
+                    <span className="text-xs text-zinc-400">{issue.state.name}</span>
                   )}
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+                  {issue.project?.name && <span>Project: {issue.project.name}</span>}
+                  {issue.estimate != null && <span>Estimate: {issue.estimate}</span>}
                 </div>
               </a>
             ))}
