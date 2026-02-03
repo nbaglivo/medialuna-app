@@ -1,3 +1,5 @@
+import { CircleIcon } from "@radix-ui/react-icons";
+
 type LinearIssue = {
   id: string;
   identifier: string;
@@ -26,7 +28,9 @@ export default function LinearTaskPanel({ issues, isLoading, error }: LinearTask
 
       <div className="flex-1 overflow-auto p-3">
         {isLoading ? (
-          <div className="text-muted-foreground">Loading Linear issues...</div>
+          <div className="text-muted-foreground flex items-center justify-center h-full">
+            <CircleIcon className="size-4 animate-spin" />
+          </div>
         ) : error ? (
           <div className="text-sm text-red-400">{error}</div>
         ) : issues.length === 0 ? (
