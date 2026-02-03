@@ -35,7 +35,7 @@ import { TaskSources, taskSourceValues, type TaskSource } from '@/lib/task-sourc
 // import { useTaskContext } from "@/contexts/TaskContext";
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function resolveIntegration(param: string | string[] | undefined): TaskSource {
@@ -66,9 +66,10 @@ function serializeSearchParams(
   return nextParams.toString();
 }
 
-export default function Index({ searchParams = {} }: PageProps) {
-  const initialIntegration = resolveIntegration(searchParams.integration);
-  const initialSearchParams = serializeSearchParams(searchParams);
+export default async function Index({ searchParams = Promise.resolve({ integration: TaskSources.App }) }: PageProps) {
+  const searchParamsObject = await searchParams;
+  const initialIntegration = resolveIntegration(searchParamsObject.integration);
+  const initialSearchParams = serializeSearchParams(searchParamsObject);
 
   return (
     <IndexPageClient
