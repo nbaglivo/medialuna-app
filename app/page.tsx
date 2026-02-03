@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { PlusIcon, CodeIcon } from "@radix-ui/react-icons";
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AppTaskPanel from "@/components/app-task-panel";
 import IntegrationMenu from "@/components/integration-panel";
 import LinearTaskPanel from "@/components/linear-task-panel";
@@ -47,16 +47,79 @@ enum TaskSource {
   App = 'app'
 }
 
+type LinearIssue = {
+  id: string;
+  identifier: string;
+  title: string;
+  url: string;
+  priority?: number | null;
+  estimate?: number | null;
+  state?: {
+    name: string;
+  } | null;
+};
+
 export default function Index() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const tasks = [];
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  const [linearError, setLinearError] = useState<string | null>(null);
   const [activeIntegration, setActiveIntegration] = useState<TaskSource | null>(TaskSource.App);
   const [totalHours, setTotalHours] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const linearUserEmail = "nicolas.baglivo@gmail.com";
 
   const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
     setActiveIntegration(selectedIntegration);
   };
+
+  useEffect(() => {
+    if (activeIntegration !== TaskSource.Linear) {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    async function loadLinearIssues() {
+      setIsLoading(true);
+      setLinearError(null);
+
+      try {
+        const response = await fetch(`/api/linear/issues?email=${encodeURIComponent(linearUserEmail)}`, {
+          signal: abortController.signal
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error ?? 'Failed to load Linear issues.');
+        }
+
+        setLinearIssues(payload.issues ?? []);
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          const message = error instanceof Error ? error.message : 'Failed to load Linear issues.';
+          setLinearError(message);
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadLinearIssues();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [activeIntegration, linearUserEmail]);
+
+  const visibleTasks = useMemo(() => {
+    if (activeIntegration !== TaskSource.Linear) {
+      return [];
+    }
+
+    return linearIssues;
+  }, [activeIntegration, linearIssues]);
 
   return (
     <div className="flex flex-col h-full">
@@ -81,13 +144,15 @@ export default function Index() {
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="text-muted-foreground">Loading tasks...</div>
+              ) : linearError ? (
+                <div className="text-sm text-red-400">{linearError}</div>
               ) : (
                 // <TaskList
                 //   tasks={dailyPlanTasks}
                 //   onCompleteTask={completeTask}
                 //   onMoveToBacklog={handleRemoveFromDailyPlan}
                 // />
-                <div>Tasks list</div>
+                <div className="text-muted-foreground">Tasks list</div>
               )}
             </div>
 
@@ -111,7 +176,7 @@ export default function Index() {
               <GithubTaskPanel />
             )}
             {activeIntegration === TaskSource.Linear && (
-              <LinearTaskPanel />
+              <LinearTaskPanel issues={visibleTasks} isLoading={isLoading} error={linearError} />
             )}
             {activeIntegration === TaskSource.App && (
               <AppTaskPanel />
