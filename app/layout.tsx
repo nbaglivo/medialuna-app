@@ -27,6 +27,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex justify-center items-center h-screen pb-16 overflow-hidden w-full`}
       >
+        <img
+          src="/logo-transparent.png"
+          alt="Logo"
+          className="absolute top-2 left-2 h-6 w-6 sm:h-8 sm:w-8 transition-all duration-300 ease-in-out hover:rotate-12 hover:drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] hover:scale-110"
+        />
         {children}
       </body>
     </html>

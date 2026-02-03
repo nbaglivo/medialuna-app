@@ -33,7 +33,7 @@ const IntegrationMenu = ({
               onClick={() => onItemSelected(TaskSource.App)}
               aria-label="In-app tasks"
             >
-              <CheckIcon className="size-4" />
+              <img src="/logo-transparent.png" alt="medialuna icon" width={32} height={32} className="" />
               {activeIntegration === TaskSource.App && (
                 <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-purple-500 rounded-r-sm" />
               )}
