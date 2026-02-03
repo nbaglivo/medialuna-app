@@ -186,7 +186,7 @@ export default function Index() {
               <button
                 // onClick={() => navigate("/add-task")}
                 // variant="outline"
-                className="w-full flex items-center py-3 sm:py-4 px-3 rounded-md bg-[#1e1e1e] hover:bg-[#252525] text-zinc-400 hover:text-zinc-300 transition-colors border border-[#333] text-sm sm:text-base"
+                className="w-full flex items-center py-1 px-3 rounded-md bg-[#1e1e1e] hover:bg-[#252525] text-zinc-400 hover:text-zinc-300 transition-colors border border-[#333] text-sm sm:text-base"
               >
                 <PlusIcon className="mr-2 size-4" />
                 Add new task

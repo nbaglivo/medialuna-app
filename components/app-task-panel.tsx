@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PlusIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { PlusIcon, MagnifyingGlassIcon, Cross2Icon } from "@radix-ui/react-icons";
 
 export default function AppTaskPanel() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,10 +37,10 @@ export default function AppTaskPanel() {
           />
           {searchQuery && (
             <button
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-muted-foreground"
               onClick={() => setSearchQuery("")}
             >
-              <X size={14} />
+              <Cross2Icon className="size-4" />
             </button>
           )}
         </div>
