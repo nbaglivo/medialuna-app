@@ -78,7 +78,22 @@ export async function GET(request: Request) {
       }
     }
 
-    const filteredIssues = rawIssues.filter((issue) => {
+    // Load state and project for all issues (they are lazy-loaded in Linear SDK)
+    const issuesWithRelations = await Promise.all(
+      rawIssues.map(async (issue) => {
+        const [state, project] = await Promise.all([
+          issue.state,
+          issue.project
+        ]);
+        return {
+          ...issue,
+          state,
+          project
+        };
+      })
+    );
+
+    const filteredIssues = issuesWithRelations.filter((issue) => {
       if (stateFilter) {
         const stateName = issue.state?.name ?? "";
         if (stateName.toLowerCase() !== stateFilter.toLowerCase()) {

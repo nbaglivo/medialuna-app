@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TrashIcon, CheckIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
@@ -16,6 +16,19 @@ type WorkLogProps = {
   focusedProjects: UnifiedProject[];
 };
 
+type LinearIssue = {
+  id: string;
+  identifier: string;
+  title: string;
+  url: string;
+  state?: {
+    name: string;
+  } | null;
+  project?: {
+    name: string;
+  } | null;
+};
+
 const UNPLANNED_PROJECT_ID = '__unplanned__';
 
 export default function WorkLog({ focusedProjects }: WorkLogProps) {
@@ -25,6 +38,13 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | ''>('');
   const [customReason, setCustomReason] = useState('');
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  const [isLoadingIssues, setIsLoadingIssues] = useState(false);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartPos, setMentionStartPos] = useState<number>(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load work log on mount
@@ -32,9 +52,66 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
     loadWorkLog();
   }, []);
 
+  // Load Linear issues when focused projects change
+  useEffect(() => {
+    if (focusedProjects.length > 0) {
+      loadLinearIssues();
+    }
+  }, [focusedProjects]);
+
   const loadWorkLog = () => {
     const items = getWorkLog();
     setWorkItems(items);
+  };
+
+  const loadLinearIssues = async () => {
+    setIsLoadingIssues(true);
+    try {
+      const response = await fetch('/api/linear/issues');
+      if (response.ok) {
+        const data = await response.json();
+        const issues: LinearIssue[] = data.issues || [];
+        
+        // Filter to only issues from focused projects if they have projects assigned
+        // Otherwise show all issues (since many Linear issues don't have projects)
+        const focusedProjectNames = focusedProjects.map(p => p.name.toLowerCase());
+        
+        const filteredIssues = issues.filter(issue => {
+          // If issue has no project, include it (show all unassigned issues)
+          if (!issue.project?.name) {
+            return true;
+          }
+          
+          // If issue has a project, check if it matches focused projects
+          const issueProjectName = issue.project.name.toLowerCase();
+          return focusedProjectNames.some(focusedName => {
+            return issueProjectName === focusedName || 
+                   issueProjectName.includes(focusedName) ||
+                   focusedName.includes(issueProjectName);
+          });
+        });
+
+        // Sort: in progress first, then by identifier
+        const sortedIssues = filteredIssues.sort((a, b) => {
+          const aStateName = a.state?.name?.toLowerCase() || '';
+          const bStateName = b.state?.name?.toLowerCase() || '';
+          
+          const aInProgress = aStateName.includes('progress') || aStateName === 'in progress';
+          const bInProgress = bStateName.includes('progress') || bStateName === 'in progress';
+          
+          if (aInProgress && !bInProgress) return -1;
+          if (!aInProgress && bInProgress) return 1;
+          
+          return a.identifier.localeCompare(b.identifier);
+        });
+
+        setLinearIssues(sortedIssues);
+      }
+    } catch (error) {
+      console.error('Failed to load Linear issues:', error);
+    } finally {
+      setIsLoadingIssues(false);
+    }
   };
 
   const handleAddTask = () => {
@@ -68,6 +145,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
         description: newTaskDescription.trim(),
         projectId: isUnplanned ? null : selectedProjectId,
         unplannedReason: finalReason,
+        mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
       });
 
       setWorkItems(prev => [...prev, newItem]);
@@ -77,6 +155,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       setSelectedProjectId('');
       setUnplannedReason('');
       setCustomReason('');
+      setMentionedIssues({});
       setShowProjectSelector(false);
       
       // Focus back on input
@@ -86,11 +165,107 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart || 0;
+    
+    setNewTaskDescription(value);
+
+    // Check for @ mention trigger
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1) {
+      // Check if there's a space or beginning of string before @
+      const charBeforeAt = lastAtSymbol > 0 ? textBeforeCursor[lastAtSymbol - 1] : ' ';
+      const isValidMention = charBeforeAt === ' ' || lastAtSymbol === 0;
+      
+      if (isValidMention) {
+        const query = textBeforeCursor.substring(lastAtSymbol + 1);
+        // Only show dropdown if there's no space after @ (mention is still being typed)
+        const hasSpaceAfter = query.includes(' ');
+        
+        if (!hasSpaceAfter) {
+          setMentionQuery(query.toLowerCase());
+          setMentionStartPos(lastAtSymbol);
+          setShowMentionDropdown(true);
+          setSelectedMentionIndex(0);
+          return;
+        }
+      }
+    }
+    
+    setShowMentionDropdown(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionDropdown) {
+      const filteredIssues = getFilteredIssues();
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev < filteredIssues.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredIssues.length > 0) {
+          selectMention(filteredIssues[selectedMentionIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionDropdown(false);
+      }
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       handleAddTask();
     }
+  };
+
+  const getFilteredIssues = () => {
+    if (!mentionQuery) return linearIssues;
+    
+    return linearIssues.filter(issue => {
+      const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
+      return searchStr.includes(mentionQuery);
+    });
+  };
+
+  const selectMention = (issue: LinearIssue) => {
+    const beforeMention = newTaskDescription.substring(0, mentionStartPos);
+    const afterMention = newTaskDescription.substring(mentionStartPos + mentionQuery.length + 1);
+    const newText = `${beforeMention}@${issue.identifier} ${afterMention}`;
+    
+    setNewTaskDescription(newText);
+    setShowMentionDropdown(false);
+    setMentionQuery('');
+    
+    // Store the issue URL for linking later
+    setMentionedIssues(prev => ({
+      ...prev,
+      [issue.identifier]: issue.url
+    }));
+    
+    // Auto-select project: try issue's project first, otherwise select first focused project
+    if (issue.project?.name) {
+      const project = focusedProjects.find(
+        p => p.name.toLowerCase() === issue.project?.name.toLowerCase()
+      );
+      if (project) {
+        setSelectedProjectId(project.id);
+      }
+    } else if (focusedProjects.length > 0 && !selectedProjectId) {
+      // Auto-select first focused project if no project is selected yet
+      setSelectedProjectId(focusedProjects[0].id);
+    }
+    
+    // Focus back on input
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   const handleDelete = (id: string) => {
@@ -110,6 +285,58 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       minute: '2-digit',
       hour12: true 
     });
+  };
+
+  // Render description with clickable @mention links
+  const renderDescription = (description: string, mentionedIssues?: Record<string, string>) => {
+    if (!mentionedIssues || Object.keys(mentionedIssues).length === 0) {
+      return <span>{description}</span>;
+    }
+
+    // Split by @mentions and render with links
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const mentionRegex = /@([A-Z]+-\d+)/g;
+    let match;
+
+    while ((match = mentionRegex.exec(description)) !== null) {
+      const fullMatch = match[0];
+      const identifier = match[1];
+      const startIndex = match.index;
+
+      // Add text before mention
+      if (startIndex > lastIndex) {
+        parts.push(description.substring(lastIndex, startIndex));
+      }
+
+      // Add clickable mention
+      const url = mentionedIssues[identifier];
+      if (url) {
+        parts.push(
+          <a
+            key={startIndex}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-400 hover:text-purple-300 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {fullMatch}
+          </a>
+        );
+      } else {
+        parts.push(fullMatch);
+      }
+
+      lastIndex = startIndex + fullMatch.length;
+    }
+
+    // Add remaining text
+    if (lastIndex < description.length) {
+      parts.push(description.substring(lastIndex));
+    }
+
+    return <>{parts}</>;
   };
 
   const isUnplannedSelected = selectedProjectId === UNPLANNED_PROJECT_ID;
@@ -152,7 +379,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <p className="text-sm text-white">
-                    {item.description}
+                    {renderDescription(item.description, item.mentionedIssues)}
                   </p>
                   <span className="text-xs text-zinc-500 flex-shrink-0">
                     {formatTimestamp(item.timestamp)}
@@ -284,20 +511,91 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
 
         {/* Add New Task Input */}
         {!showProjectSelector && (
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
-            <div className="flex-shrink-0">
-              <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
+          <div className="relative">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
+              <div className="flex-shrink-0">
+                <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
+              </div>
+              
+              <input
+                ref={inputRef}
+                type="text"
+                value={newTaskDescription}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Add a new task... (type @ to mention issues)"
+                className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
+              />
             </div>
-            
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTaskDescription}
-              onChange={(e) => setNewTaskDescription(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Add a new task..."
-              className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
-            />
+
+            {/* @ Mention Dropdown */}
+            {showMentionDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 p-2 rounded-lg border border-purple-500 bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
+                {isLoadingIssues ? (
+                  <div className="py-4 text-center text-sm text-zinc-500">
+                    Loading issues...
+                  </div>
+                ) : getFilteredIssues().length === 0 ? (
+                  <div className="py-4 text-center text-sm text-zinc-500">
+                    {linearIssues.length === 0 
+                      ? 'No Linear issues found for focused projects'
+                      : `No issues matching "${mentionQuery}"`
+                    }
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {getFilteredIssues().map((issue, index) => {
+                      const stateName = issue.state?.name?.toLowerCase() || '';
+                      const isInProgress = stateName.includes('progress') || stateName === 'in progress';
+                      const isSelected = index === selectedMentionIndex;
+                      
+                      return (
+                        <button
+                          key={issue.id}
+                          onClick={() => selectMention(issue)}
+                          className={`w-full text-left p-2 rounded-md transition-colors ${
+                            isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
+                              {issue.identifier}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white line-clamp-2">
+                                {issue.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {issue.state && (
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isInProgress 
+                                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                      : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
+                                  }`}>
+                                    {issue.state.name}
+                                  </span>
+                                )}
+                                {issue.project && (
+                                  <span className="text-xs text-zinc-500">
+                                    {issue.project.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {!isLoadingIssues && getFilteredIssues().length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
+                    Use ↑↓ to navigate, Enter to select, Esc to close
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
