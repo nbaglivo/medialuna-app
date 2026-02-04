@@ -15,15 +15,8 @@ import {
 } from '@/lib/task-source';
 import { saveFocusSession } from '@/lib/focus-storage';
 
-type IndexPageClientProps = {
-  initialIntegration: TaskSource;
-  initialSearchParams: string;
-};
 
-export default function IndexPageClient({
-  initialIntegration,
-  initialSearchParams
-}: IndexPageClientProps) {
+export default function IndexPageClient() {
   const router = useRouter();
   const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
