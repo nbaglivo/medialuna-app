@@ -1,13 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GearIcon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
-import IntegrationMenu from '@/components/integration-panel';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import { 
-  TaskSources, 
   type TaskSource, 
   type UnifiedProject, 
   type LinearProject,
@@ -21,14 +17,8 @@ export default function IndexPageClient() {
   const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeIntegration, setActiveIntegration] = useState<TaskSource | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
-
-  const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
-    setActiveIntegration(selectedIntegration);
-    // Keep the integration menu for future use (e.g., filtering)
-  };
 
   const handleProjectToggle = (projectId: string) => {
     setSelectedProjectIds(prev => {
@@ -142,13 +132,6 @@ export default function IndexPageClient() {
                 onProjectToggle={handleProjectToggle}
               />
             </div>
-          </div>
-
-          <div className="hidden lg:block">
-            <IntegrationMenu
-              onItemSelected={handleIntegrationSelect}
-              activeIntegration={activeIntegration}
-            />
           </div>
         </div>
       </div>
