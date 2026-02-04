@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex justify-center items-center h-screen pb-16 overflow-hidden w-full`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex justify-center h-screen pb-16 overflow-hidden w-full`}
       >
         <Link href="/">
           <img

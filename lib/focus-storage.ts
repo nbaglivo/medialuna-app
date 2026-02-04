@@ -13,11 +13,32 @@ export type WorkLogItem = {
   projectId: string | null; // null for unplanned work
   unplannedReason?: string;
   mentionedIssues?: Record<string, string>; // Map of issue identifier to URL (e.g., {"NIC-123": "https://linear.app/..."})
+  duration?: number; // Duration in minutes
 };
 
 export type WorkLogSession = {
   items: WorkLogItem[];
   timestamp: number;
+};
+
+export type DaySummaryStatistics = {
+  totalTasks: number;
+  totalMinutes: number;
+  projectBreakdown: {
+    projectId: string;
+    projectName: string;
+    count: number;
+    minutes: number;
+  }[];
+  unplannedCount: number;
+};
+
+export type DaySummary = {
+  date: string; // ISO date
+  timestamp: number;
+  reflection: string;
+  workItems: WorkLogItem[];
+  statistics: DaySummaryStatistics;
 };
 
 export const UNPLANNED_REASONS = [
@@ -223,4 +244,65 @@ export function removeWorkLogItem(id: string): void {
 export function clearWorkLog(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(WORK_LOG_STORAGE_KEY);
+}
+
+// ============================================================================
+// Day Summary Functions
+// ============================================================================
+
+const DAY_HISTORY_STORAGE_KEY = 'medialuna_day_history';
+
+/**
+ * Save a day summary to history
+ */
+export function saveDaySummary(reflection: string, items: WorkLogItem[], statistics: DaySummaryStatistics): DaySummary {
+  if (typeof window === 'undefined') {
+    throw new Error('Cannot save day summary on server side');
+  }
+
+  const summary: DaySummary = {
+    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    timestamp: Date.now(),
+    reflection,
+    workItems: items,
+    statistics,
+  };
+
+  // Get existing history
+  const history = getDayHistory();
+  
+  // Add new summary
+  history.push(summary);
+  
+  // Save to localStorage
+  localStorage.setItem(DAY_HISTORY_STORAGE_KEY, JSON.stringify(history));
+  
+  return summary;
+}
+
+/**
+ * Get all day summaries from history
+ */
+export function getDayHistory(): DaySummary[] {
+  if (typeof window === 'undefined') return [];
+  
+  const stored = localStorage.getItem(DAY_HISTORY_STORAGE_KEY);
+  if (!stored) return [];
+  
+  try {
+    const history: DaySummary[] = JSON.parse(stored);
+    return Array.isArray(history) ? history : [];
+  } catch (error) {
+    console.error('Failed to parse day history:', error);
+    return [];
+  }
+}
+
+/**
+ * Clear the current day (focus session and work log)
+ */
+export function clearCurrentDay(): void {
+  if (typeof window === 'undefined') return;
+  clearFocusSession();
+  clearWorkLog();
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TrashIcon, CheckIcon } from '@radix-ui/react-icons';
+import { useRouter } from 'next/navigation';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
@@ -32,6 +33,7 @@ type LinearIssue = {
 const UNPLANNED_PROJECT_ID = '__unplanned__';
 
 export default function WorkLog({ focusedProjects }: WorkLogProps) {
+  const router = useRouter();
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
@@ -45,6 +47,8 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
   const [mentionStartPos, setMentionStartPos] = useState<number>(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
+  const [durationHours, setDurationHours] = useState<string>('');
+  const [durationMinutes, setDurationMinutes] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load work log on mount
@@ -141,11 +145,17 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
         ? (isOtherSelected ? customReason.trim() : unplannedReason)
         : undefined;
 
+      // Calculate duration in minutes
+      const hours = parseInt(durationHours) || 0;
+      const minutes = parseInt(durationMinutes) || 0;
+      const totalMinutes = hours * 60 + minutes;
+
       const newItem = addWorkLogItem({
         description: newTaskDescription.trim(),
         projectId: isUnplanned ? null : selectedProjectId,
         unplannedReason: finalReason,
         mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
+        duration: totalMinutes > 0 ? totalMinutes : undefined,
       });
 
       setWorkItems(prev => [...prev, newItem]);
@@ -156,6 +166,8 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       setUnplannedReason('');
       setCustomReason('');
       setMentionedIssues({});
+      setDurationHours('');
+      setDurationMinutes('');
       setShowProjectSelector(false);
       
       // Focus back on input
@@ -287,6 +299,19 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
     });
   };
 
+  const formatDuration = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0 && mins > 0) {
+      return `${hours}h ${mins}m`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      return `${mins}m`;
+    }
+  };
+
   // Render description with clickable @mention links
   const renderDescription = (description: string, mentionedIssues?: Record<string, string>) => {
     if (!mentionedIssues || Object.keys(mentionedIssues).length === 0) {
@@ -348,7 +373,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       <div>
         <h2 className="text-xl font-semibold text-white">Work Log</h2>
         <p className="text-sm text-zinc-400 mt-1">
-          Track what you've accomplished today
+          Track what you've put time into today
         </p>
       </div>
 
@@ -406,6 +431,11 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
                   ) : (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-500/10 border border-zinc-500/20 text-zinc-500">
                       Unknown project
+                    </span>
+                  )}
+                  {item.duration && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                      {formatDuration(item.duration)}
                     </span>
                   )}
                 </div>
@@ -479,6 +509,33 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
                   )}
                 </>
               )}
+
+              {/* Duration Input (optional) */}
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-400">Time spent (optional)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={durationHours}
+                    onChange={(e) => setDurationHours(e.target.value)}
+                    placeholder="0"
+                    className="w-20 px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <span className="text-sm text-zinc-400">hours</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(e.target.value)}
+                    placeholder="0"
+                    className="w-20 px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <span className="text-sm text-zinc-400">minutes</span>
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -598,6 +655,16 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
             )}
           </div>
         )}
+      </div>
+
+      {/* Close the Day Button */}
+      <div className="pt-4 border-t border-[#333]">
+        <button
+          onClick={() => router.push('/day-summary')}
+          className="w-full px-4 py-3 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-600 transition-colors"
+        >
+          Close the Day
+        </button>
       </div>
     </div>
   );
