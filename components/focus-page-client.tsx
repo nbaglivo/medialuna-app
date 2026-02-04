@@ -24,7 +24,6 @@ export default function FocusPageClient() {
   const [focusedProjects, setFocusedProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState('');
   const [focusTimestamp, setFocusTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
@@ -45,9 +44,6 @@ export default function FocusPageClient() {
 
       // Store timestamp for expiry checking
       setFocusTimestamp(session.timestamp);
-
-      // Update time remaining
-      setTimeRemaining(formatTimeUntilMidnight());
 
       // Fetch all projects
       const projectsFromAllSources: UnifiedProject[] = [];
@@ -91,29 +87,6 @@ export default function FocusPageClient() {
     };
   }, [router]);
 
-  // Separate effect for checking expiry and updating time
-  useEffect(() => {
-    if (!focusTimestamp) return;
-
-    // Update time remaining every minute
-    const updateInterval = setInterval(() => {
-      setTimeRemaining(formatTimeUntilMidnight());
-    }, 60000);
-
-    // Check for expiry every 30 seconds
-    const expiryCheckInterval = setInterval(() => {
-      if (isFocusExpired(focusTimestamp)) {
-        clearFocusSession();
-        router.push('/');
-      }
-    }, 30000);
-
-    return () => {
-      clearInterval(updateInterval);
-      clearInterval(expiryCheckInterval);
-    };
-  }, [focusTimestamp, router]);
-
   const handleChangeFocus = () => {
     clearFocusSession();
     clearWorkLog();
@@ -121,9 +94,9 @@ export default function FocusPageClient() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       {/* Header */}
-      <div className="border-b border-[#333] bg-[#111] px-4 py-4 sm:px-6">
+      <div className="border-b border-[#333] px-4 py-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -138,17 +111,20 @@ export default function FocusPageClient() {
                 <div>
                   <h1 className="text-2xl font-bold text-white">Today's work</h1>
                   <p className="text-sm text-zinc-400 mt-0.5">
-                    {focusedProjects.length} project{focusedProjects.length !== 1 ? 's' : ''} • Resets in {timeRemaining}
+                    {focusedProjects.length} project{focusedProjects.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleChangeFocus}
-              className="px-4 py-2 rounded-md bg-[#1e1e1e] text-zinc-300 text-sm border border-[#333] hover:bg-[#252525] transition-colors"
-            >
-              Change Focus
-            </button>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={handleChangeFocus}>
+                Change Focus
+              </Button>
+              <Button onClick={() => router.push('/day-summary')}>
+                Close the Day
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -207,5 +183,16 @@ export default function FocusPageClient() {
         </div>
       </div>
     </div>
+  );
+}
+
+function Button({ children, onClick }: { children: React.ReactNode, onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-2 py-1 rounded-lg text-white font-medium cursor-pointer transition-colors hover:bg-[#252525]"
+    >
+      {children}
+    </button>
   );
 }

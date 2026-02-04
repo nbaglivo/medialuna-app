@@ -657,15 +657,6 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
         )}
       </div>
 
-      {/* Close the Day Button */}
-      <div className="pt-4 border-t border-[#333]">
-        <button
-          onClick={() => router.push('/day-summary')}
-          className="w-full px-4 py-3 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-600 transition-colors"
-        >
-          Close the Day
-        </button>
-      </div>
     </div>
   );
 }
