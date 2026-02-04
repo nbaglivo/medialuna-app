@@ -115,16 +115,6 @@ export default function IndexPageClient({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex fixed right-2 top-2 sm:right-4 sm:top-4 justify-end mb-2 space-x-2 z-10">
-        <Link
-          href="/config"
-          className="p-2 rounded-full hover:bg-[#252525] transition-colors"
-          title="Settings"
-        >
-          <GearIcon className="text-zinc-400 size-4" />
-        </Link>
-      </div>
-
       <div className="flex-1 flex flex-col mt-8 sm:mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] h-full gap-2 bg-background text-foreground">
           <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4">
