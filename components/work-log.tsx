@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TrashIcon, CheckIcon } from '@radix-ui/react-icons';
-import { useRouter } from 'next/navigation';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
@@ -23,6 +22,7 @@ import {
 
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
+  onWorkLogChange: (workLog: WorkLogItem[]) => void;
 };
 
 type LinearIssue = {
@@ -40,8 +40,7 @@ type LinearIssue = {
 
 const UNPLANNED_PROJECT_ID = '__unplanned__';
 
-export default function WorkLog({ focusedProjects }: WorkLogProps) {
-  const router = useRouter();
+export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
@@ -59,6 +58,10 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
   const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onWorkLogChange(workItems);
+  }, [workItems]);
 
   // Load work log on mount
   useEffect(() => {
@@ -655,7 +658,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
           </div>
         )}
 
-        {/* Add New Task Input */}
+        {/* Record New Work Item Input */}
         {!showProjectSelector && (
           <div className="relative">
             <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
@@ -669,7 +672,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
                 value={newTaskDescription}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Add a new task... (type @ to mention issues)"
+                placeholder="Record a new work item... (type @ to mention issues)"
                 className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
               />
             </div>

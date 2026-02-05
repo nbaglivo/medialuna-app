@@ -11,13 +11,14 @@ import {
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { getDayWorkSession } from '@/lib/focus-storage';
+import { getDayWorkSession, WorkLogItem } from '@/lib/focus-storage';
 
 export default function DayWorkPageClient() {
   const router = useRouter();
   const [focusedProjects, setFocusedProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workLog, setWorkLog] = useState<WorkLogItem[] | []>([]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -155,13 +156,43 @@ export default function DayWorkPageClient() {
               <div className="border-t border-[#333]" />
 
               {/* Work Log Section */}
-              <WorkLog focusedProjects={focusedProjects} />
+              <div className="flex w-full gap-4 mb-4">
+                <div className="flex-1">
+                  <WorkLog focusedProjects={focusedProjects} onWorkLogChange={setWorkLog} />
+                </div>
+                <div className="flex-1 border-l border-[#333] pl-4">
+                  <WorkLogSummary workLog={workLog} />
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+function WorkLogSummary({ workLog }: { workLog: WorkLogItem[] }) {
+  const workLogSummary = getWorkLogSummary(workLog);
+  return (
+    <div className="mt-4">
+      <h3 className="text-lg font-semibold text-white">Summary of your day so far</h3>
+
+      <div className="flex flex-col gap-2 mt-4">
+        <div className="text-sm text-zinc-400">Time invested today: {workLogSummary.timeInvested} minutes</div>
+      </div>
+    </div>
+  );
+}
+
+type WorkLogSummary = {
+  timeInvested: number; // in minutes
+};
+
+function getWorkLogSummary(workLog: WorkLogItem[]): WorkLogSummary {
+  return {
+    timeInvested: workLog.reduce((acc, item) => acc + (item.duration ?? 0), 0),
+  };
 }
 
 function Button({ children, onClick }: { children: React.ReactNode, onClick: () => void }) {
