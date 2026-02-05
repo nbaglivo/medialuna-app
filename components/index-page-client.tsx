@@ -3,13 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
-import { 
-  type TaskSource, 
+import {
   type UnifiedProject, 
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { saveFocusSession } from '@/lib/focus-storage';
+import { saveDayPlanSession, saveFocusSession } from '@/lib/focus-storage';
+import { startDayPlan } from '@/app/actions/day-plan';
 
 
 export default function IndexPageClient() {
@@ -17,8 +17,8 @@ export default function IndexPageClient() {
   const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [isStarting, setIsStarting] = useState(false);
 
   const handleProjectToggle = (projectId: string) => {
     setSelectedProjectIds(prev => {
@@ -32,21 +32,33 @@ export default function IndexPageClient() {
     });
   };
 
-  const handleStartFocus = () => {
+  const handleStartFocus = async () => {
     if (selectedProjectIds.size === 0) return;
-    
-    // Save to session storage
-    saveFocusSession(Array.from(selectedProjectIds));
-    
-    // Navigate to focus page
-    router.push('/focus');
-  };
 
-  const toggleSelectionMode = () => {
-    setSelectionMode(prev => !prev);
-    if (selectionMode) {
-      // Clear selections when exiting selection mode
-      setSelectedProjectIds(new Set());
+    setIsStarting(true);
+
+    try {
+      const planDate = new Date().toISOString().split('T')[0];
+      const selectedProjects = allProjects.filter(project => selectedProjectIds.has(project.id));
+      const { dayPlanId } = await startDayPlan({
+        planDate,
+        projects: selectedProjects.map(project => ({
+          projectId: project.id,
+          projectSource: project.source,
+          projectName: project.name,
+        })),
+      });
+
+      saveDayPlanSession(dayPlanId, planDate);
+
+      // Save to session storage
+      saveFocusSession(Array.from(selectedProjectIds));
+
+      // Navigate to day work page
+      router.push('/day-work');
+    } catch (error) {
+      console.error('Failed to start day plan:', error);
+      setIsStarting(false);
     }
   };
 
@@ -109,16 +121,6 @@ export default function IndexPageClient() {
                     All projects your are involved in.
                   </p>
                 </div>
-                <button
-                  onClick={toggleSelectionMode}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectionMode
-                      ? 'bg-purple-500 text-white hover:bg-purple-600'
-                      : 'bg-[#1e1e1e] text-zinc-300 border border-[#333] hover:bg-[#252525]'
-                  }`}
-                >
-                  {selectionMode ? 'Cancel' : 'Select Focus'}
-                </button>
               </div>
             </div>
 
@@ -127,7 +129,7 @@ export default function IndexPageClient() {
                 projects={allProjects}
                 isLoading={isLoading}
                 error={error}
-                selectionMode={selectionMode}
+                selectionMode={true}
                 selectedProjectIds={selectedProjectIds}
                 onProjectToggle={handleProjectToggle}
               />
@@ -137,7 +139,7 @@ export default function IndexPageClient() {
       </div>
 
       {/* Focus Session Action Bar */}
-      {selectionMode && selectedProjectIds.size > 0 && (
+
         <div className="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-[#333] p-4 z-20">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <span className="text-sm text-zinc-300">
@@ -145,13 +147,13 @@ export default function IndexPageClient() {
             </span>
             <button
               onClick={handleStartFocus}
-              className="px-6 py-2.5 rounded-md bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 transition-colors"
+              disabled={selectedProjectIds.size === 0 || isStarting}
+              className="px-6 py-2.5 border border-[#333] cursor-pointer rounded-md text-white text-sm font-medium transition-colors"
             >
-              Start Focus Session
+              {isStarting ? 'Starting...' : 'Start Day'}
             </button>
           </div>
         </div>
-      )}
     </div>
   );
 }

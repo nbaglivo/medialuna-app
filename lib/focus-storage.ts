@@ -1,5 +1,6 @@
 const FOCUS_STORAGE_KEY = 'medialuna_focus_projects';
 const WORK_LOG_STORAGE_KEY = 'medialuna_work_log';
+const DAY_PLAN_STORAGE_KEY = 'medialuna_day_plan';
 
 export type FocusSession = {
   projectIds: string[];
@@ -41,6 +42,12 @@ export type DaySummary = {
   statistics: DaySummaryStatistics;
 };
 
+export type DayPlanSession = {
+  dayPlanId: string;
+  planDate: string;
+  timestamp: number;
+};
+
 export const UNPLANNED_REASONS = [
   'Urgent bug',
   'Support request',
@@ -57,6 +64,18 @@ function getTodayMidnight(): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today.getTime();
+}
+
+function getTodayDateString(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function generateFallbackUuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+    const rand = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? rand : (rand & 0x3) | 0x8;
+    return value.toString(16);
+  });
 }
 
 /**
@@ -90,7 +109,7 @@ export function saveFocusSession(projectIds: string[]): void {
  * Get the current focus session from session storage
  * Returns null if no session exists or if expired
  */
-export function getFocusSession(): FocusSession | null {
+export function getDayWorkSession(): FocusSession | null {
   if (typeof window === 'undefined') return null;
   
   const stored = sessionStorage.getItem(FOCUS_STORAGE_KEY);
@@ -119,6 +138,46 @@ export function getFocusSession(): FocusSession | null {
 export function clearFocusSession(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(FOCUS_STORAGE_KEY);
+}
+
+export function saveDayPlanSession(dayPlanId: string, planDate: string): void {
+  if (typeof window === 'undefined') return;
+
+  const session: DayPlanSession = {
+    dayPlanId,
+    planDate,
+    timestamp: Date.now(),
+  };
+
+  sessionStorage.setItem(DAY_PLAN_STORAGE_KEY, JSON.stringify(session));
+}
+
+export function getDayPlanSession(): DayPlanSession | null {
+  if (typeof window === 'undefined') return null;
+
+  const stored = sessionStorage.getItem(DAY_PLAN_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const session: DayPlanSession = JSON.parse(stored);
+    const today = getTodayDateString();
+
+    if (session.planDate !== today) {
+      clearDayPlanSession();
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    console.error('Failed to parse day plan session:', error);
+    clearDayPlanSession();
+    return null;
+  }
+}
+
+export function clearDayPlanSession(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(DAY_PLAN_STORAGE_KEY);
 }
 
 /**
@@ -201,10 +260,12 @@ export function addWorkLogItem(item: Omit<WorkLogItem, 'id' | 'timestamp'>): Wor
   if (typeof window === 'undefined') {
     throw new Error('Cannot add work log item on server side');
   }
-  
+
+  const generatedId = globalThis.crypto?.randomUUID?.() ?? generateFallbackUuid();
+
   const newItem: WorkLogItem = {
     ...item,
-    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: generatedId,
     timestamp: Date.now(),
   };
   
@@ -305,4 +366,5 @@ export function clearCurrentDay(): void {
   if (typeof window === 'undefined') return;
   clearFocusSession();
   clearWorkLog();
+  clearDayPlanSession();
 }

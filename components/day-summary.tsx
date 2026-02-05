@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, CheckIcon, CopyIcon } from '@radix-ui/react-icons';
 import {
@@ -9,9 +9,12 @@ import {
   getWorkLog,
   saveDaySummary,
   clearCurrentDay,
-  getFocusSession,
+  getDayWorkSession,
+  getDayPlanSession,
+  saveDayPlanSession,
 } from '@/lib/focus-storage';
 import { type UnifiedProject, type LinearProject, normalizeLinearProject } from '@/lib/task-source';
+import { startDayPlan, updateDayPlanReflection } from '@/app/actions/day-plan';
 
 export default function DaySummary() {
   const router = useRouter();
@@ -21,10 +24,39 @@ export default function DaySummary() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [dayPlanId, setDayPlanId] = useState<string | null>(null);
+  const reflectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const session = getDayPlanSession();
+    if (session) {
+      setDayPlanId(session.dayPlanId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (reflectionTimeoutRef.current) {
+      clearTimeout(reflectionTimeoutRef.current);
+    }
+
+    reflectionTimeoutRef.current = setTimeout(() => {
+      handleReflectionAutosave().catch(error => {
+        console.error('Failed to autosave reflection:', error);
+      });
+    }, 500);
+
+    return () => {
+      if (reflectionTimeoutRef.current) {
+        clearTimeout(reflectionTimeoutRef.current);
+      }
+    };
+  }, [reflection, isLoading, focusedProjects]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -34,7 +66,7 @@ export default function DaySummary() {
     setWorkItems(items);
 
     // Get focused projects
-    const session = getFocusSession();
+    const session = getDayWorkSession();
     if (session) {
       try {
         const linearResponse = await fetch('/api/linear/projects');
@@ -54,6 +86,40 @@ export default function DaySummary() {
     }
 
     setIsLoading(false);
+  };
+
+  const ensureDayPlanId = async () => {
+    const session = getDayPlanSession();
+    if (session) {
+      setDayPlanId(session.dayPlanId);
+      return session.dayPlanId;
+    }
+
+    if (focusedProjects.length === 0) return null;
+
+    const planDate = new Date().toISOString().split('T')[0];
+    const { dayPlanId: createdId } = await startDayPlan({
+      planDate,
+      projects: focusedProjects.map(project => ({
+        projectId: project.id,
+        projectSource: project.source,
+        projectName: project.name,
+      })),
+    });
+
+    saveDayPlanSession(createdId, planDate);
+    setDayPlanId(createdId);
+    return createdId;
+  };
+
+  const handleReflectionAutosave = async () => {
+    const dayPlanIdValue = dayPlanId ?? await ensureDayPlanId();
+    if (!dayPlanIdValue) return;
+
+    await updateDayPlanReflection({
+      dayPlanId: dayPlanIdValue,
+      reflection,
+    });
   };
 
   const calculateStatistics = (): DaySummaryStatistics => {
@@ -173,7 +239,7 @@ export default function DaySummary() {
   };
 
   const handleCancel = () => {
-    router.push('/focus');
+    router.push('/day-work');
   };
 
   if (isLoading) {
@@ -192,7 +258,7 @@ export default function DaySummary() {
       <div className="flex flex-col items-center justify-center h-screen">
         <p className="text-zinc-400 mb-4">No work logged today</p>
         <button
-          onClick={() => router.push('/focus')}
+          onClick={() => router.push('/day-work')}
           className="px-4 py-2 rounded-md bg-purple-500 text-white hover:bg-purple-600 transition-colors"
         >
           Go Back
@@ -303,7 +369,7 @@ export default function DaySummary() {
                 <span className="text-zinc-500 text-sm">Visible only to you.</span>
               </div>
               <p className="text-sm text-zinc-500">
-                Things you’ve interacted with in Sunsama and connected apps on this day.
+                Things you’ve interacted with today.
               </p>
               <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-6 text-center text-sm text-zinc-400">
                 All activities have been included as highlights.

@@ -11,20 +11,13 @@ import {
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { 
-  getFocusSession, 
-  clearFocusSession, 
-  formatTimeUntilMidnight,
-  isFocusExpired,
-  clearWorkLog
-} from '@/lib/focus-storage';
+import { getDayWorkSession } from '@/lib/focus-storage';
 
-export default function FocusPageClient() {
+export default function DayWorkPageClient() {
   const router = useRouter();
   const [focusedProjects, setFocusedProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [focusTimestamp, setFocusTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -34,16 +27,13 @@ export default function FocusPageClient() {
       setError(null);
 
       // Get focus session
-      const session = getFocusSession();
+      const session = getDayWorkSession();
       
       if (!session || session.projectIds.length === 0) {
         // No focus session or expired, redirect to main page
         router.push('/');
         return;
       }
-
-      // Store timestamp for expiry checking
-      setFocusTimestamp(session.timestamp);
 
       // Fetch all projects
       const projectsFromAllSources: UnifiedProject[] = [];
@@ -87,14 +77,8 @@ export default function FocusPageClient() {
     };
   }, [router]);
 
-  const handleChangeFocus = () => {
-    clearFocusSession();
-    clearWorkLog();
-    router.push('/');
-  };
-
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col bg-[#141414] h-full w-full">
       {/* Header */}
       <div className="border-b border-[#333] px-4 py-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
@@ -118,9 +102,6 @@ export default function FocusPageClient() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button onClick={handleChangeFocus}>
-                Change Focus
-              </Button>
               <Button onClick={() => router.push('/day-summary')}>
                 Close the Day
               </Button>

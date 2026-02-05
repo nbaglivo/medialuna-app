@@ -11,7 +11,15 @@ import {
   getWorkLog,
   addWorkLogItem,
   removeWorkLogItem,
+  getDayPlanSession,
+  saveDayPlanSession,
 } from '@/lib/focus-storage';
+import {
+  startDayPlan,
+  syncDayPlanProjects,
+  upsertWorkLogItem,
+  deleteWorkLogItem,
+} from '@/app/actions/day-plan';
 
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
@@ -49,11 +57,16 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
   const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
   const [durationHours, setDurationHours] = useState<string>('');
   const [durationMinutes, setDurationMinutes] = useState<string>('');
+  const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load work log on mount
   useEffect(() => {
     loadWorkLog();
+    const session = getDayPlanSession();
+    if (session) {
+      setDayPlanId(session.dayPlanId);
+    }
   }, []);
 
   // Load Linear issues when focused projects change
@@ -62,6 +75,52 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       loadLinearIssues();
     }
   }, [focusedProjects]);
+
+  useEffect(() => {
+    const syncProjects = async () => {
+      if (focusedProjects.length === 0) return;
+
+      const dayPlanIdValue = await ensureDayPlanId();
+      if (!dayPlanIdValue) return;
+
+      await syncDayPlanProjects({
+        dayPlanId: dayPlanIdValue,
+        projects: focusedProjects.map(project => ({
+          projectId: project.id,
+          projectSource: project.source,
+          projectName: project.name,
+        })),
+      });
+    };
+
+    syncProjects().catch(error => {
+      console.error('Failed to sync day plan projects:', error);
+    });
+  }, [focusedProjects]);
+
+  const ensureDayPlanId = async () => {
+    const session = getDayPlanSession();
+    if (session) {
+      setDayPlanId(session.dayPlanId);
+      return session.dayPlanId;
+    }
+
+    if (focusedProjects.length === 0) return null;
+
+    const planDate = new Date().toISOString().split('T')[0];
+    const { dayPlanId: createdId } = await startDayPlan({
+      planDate,
+      projects: focusedProjects.map(project => ({
+        projectId: project.id,
+        projectSource: project.source,
+        projectName: project.name,
+      })),
+    });
+
+    saveDayPlanSession(createdId, planDate);
+    setDayPlanId(createdId);
+    return createdId;
+  };
 
   const loadWorkLog = () => {
     const items = getWorkLog();
@@ -118,7 +177,7 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
     }
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskDescription.trim()) return;
     
     // If no project selected, show selector
@@ -159,6 +218,27 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
       });
 
       setWorkItems(prev => [...prev, newItem]);
+
+      const dayPlanIdValue = await ensureDayPlanId();
+      if (dayPlanIdValue) {
+        const projectSource = newItem.projectId
+          ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
+          : null;
+
+        await upsertWorkLogItem({
+          dayPlanId: dayPlanIdValue,
+          item: {
+            id: newItem.id,
+            description: newItem.description,
+            timestamp: newItem.timestamp,
+            projectId: newItem.projectId,
+            projectSource,
+            unplannedReason: newItem.unplannedReason,
+            mentionedIssues: newItem.mentionedIssues,
+            durationMinutes: newItem.duration ?? null,
+          },
+        });
+      }
       
       // Reset form
       setNewTaskDescription('');
@@ -280,9 +360,18 @@ export default function WorkLog({ focusedProjects }: WorkLogProps) {
     }, 0);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     removeWorkLogItem(id);
     setWorkItems(prev => prev.filter(item => item.id !== id));
+
+    try {
+      const dayPlanIdValue = dayPlanId ?? await ensureDayPlanId();
+      if (dayPlanIdValue) {
+        await deleteWorkLogItem({ dayPlanId: dayPlanIdValue, itemId: id });
+      }
+    } catch (error) {
+      console.error('Failed to delete work log item:', error);
+    }
   };
 
   const getProjectById = (projectId: string | null): UnifiedProject | null => {
