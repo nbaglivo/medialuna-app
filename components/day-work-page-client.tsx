@@ -94,9 +94,6 @@ export default function DayWorkPageClient() {
                 </Link>
                 <div>
                   <h1 className="text-2xl font-bold text-white">Today's work</h1>
-                  <p className="text-sm text-zinc-400 mt-0.5">
-                    {focusedProjects.length} project{focusedProjects.length !== 1 ? 's' : ''}
-                  </p>
                 </div>
               </div>
             </div>
@@ -144,7 +141,7 @@ export default function DayWorkPageClient() {
                 <div className="mb-4">
                   <h2 className="text-xl font-semibold text-white">Focus Projects</h2>
                   <p className="text-sm text-zinc-400 mt-1">
-                    Projects you're focusing on today
+                    {focusedProjects.length > 1 ? 'Projects you\'re focusing on today' : 'Project you\'re focusing on today'}
                   </p>
                 </div>
                 <UnifiedProjectsList
