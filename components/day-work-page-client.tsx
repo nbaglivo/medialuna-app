@@ -130,12 +130,12 @@ export default function DayWorkPageClient() {
               <p className="text-sm text-zinc-500 mt-2">
                 The projects you selected may no longer be available.
               </p>
-              <button
-                onClick={handleChangeFocus}
+              <Link
+                href="/"
                 className="mt-4 px-4 py-2 rounded-md bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 transition-colors"
               >
                 Select New Projects
-              </button>
+              </Link>
             </div>
           ) : (
             <div className="space-y-8">
