@@ -1,188 +1,212 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusIcon, GearIcon } from '@radix-ui/react-icons';
 import { useEffect, useMemo, useState } from 'react';
-import AppTaskPanel from '@/components/app-task-panel';
-import IntegrationMenu from '@/components/integration-panel';
-import LinearTaskPanel from '@/components/linear-task-panel';
-import GithubTaskPanel from '@/components/github-task-panel';
-import { TaskSources, type TaskSource } from '@/lib/task-source';
+import UnifiedProjectsList from '@/components/unified-projects-list';
+import {
+  type UnifiedProject, 
+  type LinearProject,
+  normalizeLinearProject 
+} from '@/lib/task-source';
+import { saveDayPlanSession, saveFocusSession } from '@/lib/focus-storage';
+import { startDayPlan } from '@/app/actions/day-plan';
 
-type LinearIssue = {
-  id: string;
-  identifier: string;
-  title: string;
-  url: string;
-  priority?: number | null;
-  estimate?: number | null;
-  state?: {
-    name: string;
-  } | null;
-  project?: {
-    name: string;
-  } | null;
-};
 
-type IndexPageClientProps = {
-  initialIntegration: TaskSource;
-  initialSearchParams: string;
-};
-
-export default function IndexPageClient({
-  initialIntegration,
-  initialSearchParams
-}: IndexPageClientProps) {
+export default function IndexPageClient() {
   const router = useRouter();
-  const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
-  const [linearError, setLinearError] = useState<string | null>(null);
-  const [linearNeedsConnection, setLinearNeedsConnection] = useState(false);
-  const [activeIntegration, setActiveIntegration] = useState<TaskSource>(initialIntegration);
-  const [totalHours, setTotalHours] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentSearchParams, setCurrentSearchParams] = useState(
-    () => new URLSearchParams(initialSearchParams)
-  );
+  const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [isStarting, setIsStarting] = useState(false);
 
-  const handleIntegrationSelect = (selectedIntegration: TaskSource) => {
-    setActiveIntegration(selectedIntegration);
+  const statusOptions = useMemo(() => {
+    const options = new Set<string>();
+    allProjects.forEach((project) => {
+      if (project.state) {
+        options.add(project.state);
+      }
+    });
+    return Array.from(options).sort((a, b) => a.localeCompare(b));
+  }, [allProjects]);
 
-    const nextParams = new URLSearchParams(currentSearchParams.toString());
-    nextParams.set('integration', selectedIntegration);
-    setCurrentSearchParams(nextParams);
-    router.replace(`/?${nextParams.toString()}`);
+  const filteredProjects =
+    selectedStatus === 'All'
+      ? allProjects
+      : allProjects.filter((project) => project.state === selectedStatus);
+
+  const handleProjectToggle = (projectId: string) => {
+    setSelectedProjectIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleUnselectAll = () => {
+    setSelectedProjectIds(new Set());
+  };
+
+  const handleStartFocus = async () => {
+    if (selectedProjectIds.size === 0) return;
+
+    setIsStarting(true);
+
+    try {
+      const planDate = new Date().toISOString().split('T')[0];
+      const selectedProjects = allProjects.filter(project => selectedProjectIds.has(project.id));
+      const { dayPlanId } = await startDayPlan({
+        planDate,
+        projects: selectedProjects.map(project => ({
+          projectId: project.id,
+          projectSource: project.source,
+          projectName: project.name,
+        })),
+      });
+
+      saveDayPlanSession(dayPlanId, planDate);
+
+      // Save to session storage
+      saveFocusSession(Array.from(selectedProjectIds));
+
+      // Navigate to day work page
+      router.push('/day-work');
+    } catch (error) {
+      console.error('Failed to start day plan:', error);
+      setIsStarting(false);
+    }
   };
 
   useEffect(() => {
-    if (activeIntegration !== TaskSources.Linear) {
-      return;
-    }
-
     const abortController = new AbortController();
 
-    async function loadLinearIssues() {
+    async function loadAllProjects() {
       setIsLoading(true);
-      setLinearError(null);
-      setLinearNeedsConnection(false);
+      setError(null);
+      
+      const projectsFromAllSources: UnifiedProject[] = [];
 
+      // Fetch Linear projects
       try {
-        const response = await fetch('/api/linear/issues', {
+        const linearResponse = await fetch('/api/linear/projects', {
           signal: abortController.signal
         });
-        const payload = await response.json();
 
-        if (!response.ok) {
-          if (response.status === 401) {
-            setLinearNeedsConnection(true);
-            setLinearIssues([]);
-            return;
-          }
-          throw new Error(payload?.error ?? 'Failed to load Linear issues.');
+        if (linearResponse.ok) {
+          const linearPayload = await linearResponse.json();
+          const linearProjects: LinearProject[] = linearPayload.projects ?? [];
+          const normalizedLinear = linearProjects.map(normalizeLinearProject);
+          projectsFromAllSources.push(...normalizedLinear);
+        } else if (linearResponse.status !== 401) {
+          // Ignore 401 (not connected), but log other errors
+          console.warn('Failed to load Linear projects:', linearResponse.status);
         }
-
-        setLinearIssues(payload.issues ?? []);
       } catch (error) {
         if (!abortController.signal.aborted) {
-          const message = error instanceof Error ? error.message : 'Failed to load Linear issues.';
-          setLinearError(message);
+          console.warn('Error loading Linear projects:', error);
         }
-      } finally {
-        if (!abortController.signal.aborted) {
-          setIsLoading(false);
-        }
+      }
+
+      // TODO: Add GitHub projects fetch when API is ready
+      // TODO: Add App projects fetch when API is ready
+
+      if (!abortController.signal.aborted) {
+        setAllProjects(projectsFromAllSources);
+        setIsLoading(false);
       }
     }
 
-    loadLinearIssues();
+    loadAllProjects();
 
     return () => {
       abortController.abort();
     };
-  }, [activeIntegration]);
+  }, []);
 
-  const visibleTasks = useMemo(() => {
-    if (activeIntegration !== TaskSources.Linear) {
-      return [];
+  useEffect(() => {
+    if (selectedStatus !== 'All' && !statusOptions.includes(selectedStatus)) {
+      setSelectedStatus('All');
     }
-
-    return linearIssues;
-  }, [activeIntegration, linearIssues]);
+  }, [selectedStatus, statusOptions]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex fixed right-2 top-2 sm:right-4 sm:top-4 justify-end mb-2 space-x-2 z-10">
-        <Link
-          href="/config"
-          className="p-2 rounded-full hover:bg-[#252525] transition-colors"
-          title="Settings"
-        >
-          <GearIcon className="text-zinc-400 size-4" />
-        </Link>
+    <div className="flex flex-col h-full w-full px-4 md:px-8 lg:px-16">
+      <div className="flex-1 flex flex-col mt-8 sm:mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] h-full gap-2 bg-background text-foreground">
+          <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4">
+            <div className="flex-shrink-0">
+              <div className="flex flex-col gap-3">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">Projects</h2>
+                  <p className="text-zinc-400 mt-1 text-sm sm:text-base">
+                    These are the projects you are involved in. Select the projects you want to focus on for today.
+                  </p>
+                </div>
+
+                {/* Status filter */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-zinc-400" htmlFor="project-status-filter">
+                    Status
+                  </label>
+                  <select
+                    id="project-status-filter"
+                    value={selectedStatus}
+                    onChange={(event) => setSelectedStatus(event.target.value)}
+                    disabled={isLoading}
+                    className="w-40 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                  >
+                    <option value="All">All</option>
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pb-4">
+              <UnifiedProjectsList
+                projects={filteredProjects}
+                isLoading={isLoading}
+                error={error}
+                selectedProjectIds={selectedProjectIds}
+                onProjectToggle={handleProjectToggle}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col mt-8 sm:mt-12">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] h-full gap-2 bg-background text-foreground">
-          <div className={`h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4 transition-all duration-300 ease-in-out ${!isPanelVisible ? 'lg:col-span-2' : ''}`}>
-            <div className="flex-shrink-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Today's Plan</h2>
-              <p className="text-zinc-400 mt-1 text-sm sm:text-base">Total hours committed today: {totalHours.toFixed(1)}h</p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {isLoading ? (
-                <div className="text-muted-foreground">Loading tasks...</div>
-              ) : linearError ? (
-                <div className="text-sm text-red-400">{linearError}</div>
-              ) : (
-                // <TaskList
-                //   tasks={dailyPlanTasks}
-                //   onCompleteTask={completeTask}
-                //   onMoveToBacklog={handleRemoveFromDailyPlan}
-                // />
-                <div className="text-muted-foreground">Tasks list</div>
-              )}
-            </div>
-
-            <div className="flex-shrink-0">
-              <button
-                // onClick={() => navigate("/add-task")}
-                // variant="outline"
-                className="w-full flex items-center py-1 px-3 rounded-md bg-[#1e1e1e] hover:bg-[#252525] text-zinc-400 hover:text-zinc-300 transition-colors border border-[#333] text-sm sm:text-base"
-              >
-                <PlusIcon className="mr-2 size-4" />
-                Add new task
-              </button>
-            </div>
+      {/* Focus Session Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-[#333] p-4 z-20">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-zinc-300">
+              {selectedProjectIds.size} project{selectedProjectIds.size !== 1 ? 's' : ''} selected
+            </span>
+            <button
+              type="button"
+              onClick={handleUnselectAll}
+              disabled={selectedProjectIds.size === 0}
+              className="text-xs text-zinc-400 transition-colors hover:text-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-600"
+            >
+              Unselect all
+            </button>
           </div>
-
-          <div className={`overflow-y-auto transition-all duration-300 ease-in-out ${isPanelVisible
-              ? 'opacity-100 translate-x-0 w-full lg:w-[432px] xl:w-[432px]'
-              : 'opacity-0 translate-x-full w-0 hidden lg:block'
-            }`}>
-            {activeIntegration === TaskSources.Github && (
-              <GithubTaskPanel />
-            )}
-            {activeIntegration === TaskSources.Linear && (
-              <LinearTaskPanel
-                issues={visibleTasks}
-                isLoading={isLoading}
-                error={linearError}
-                needsConnection={linearNeedsConnection}
-              />
-            )}
-            {activeIntegration === TaskSources.App && (
-              <AppTaskPanel />
-            )}
-          </div>
-
-          <div className="hidden lg:block">
-            <IntegrationMenu
-              onItemSelected={handleIntegrationSelect}
-              activeIntegration={activeIntegration}
-            />
-          </div>
+          <button
+            onClick={handleStartFocus}
+            disabled={selectedProjectIds.size === 0 || isStarting}
+            className="px-6 py-2.5 border border-[#333] cursor-pointer rounded-md text-white text-sm font-medium transition-colors"
+          >
+            {isStarting ? 'Starting...' : 'Start Day'}
+          </button>
         </div>
       </div>
     </div>
