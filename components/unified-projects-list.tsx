@@ -1,13 +1,13 @@
 'use client';
 
-import { GitHubLogoIcon } from '@radix-ui/react-icons';
+import { ExternalLinkIcon, GitHubLogoIcon } from '@radix-ui/react-icons';
+import Link from 'next/link';
 import { TaskSources, type UnifiedProject } from '@/lib/task-source';
 
 type UnifiedProjectsListProps = {
   projects: UnifiedProject[];
   isLoading: boolean;
   error: string | null;
-  selectionMode?: boolean;
   selectedProjectIds?: Set<string>;
   onProjectToggle?: (projectId: string) => void;
 };
@@ -44,7 +44,6 @@ export default function UnifiedProjectsList({
   projects,
   isLoading,
   error,
-  selectionMode = false,
   selectedProjectIds = new Set(),
   onProjectToggle,
 }: UnifiedProjectsListProps) {
@@ -78,9 +77,8 @@ export default function UnifiedProjectsList({
     );
   }
 
-  const handleProjectClick = (e: React.MouseEvent, projectId: string) => {
-    if (selectionMode && onProjectToggle) {
-      e.preventDefault();
+  const handleProjectToggle = (projectId: string) => {
+    if (onProjectToggle) {
       onProjectToggle(projectId);
     }
   };
@@ -91,39 +89,42 @@ export default function UnifiedProjectsList({
         const isSelected = selectedProjectIds.has(project.id);
 
         return (
-          <a
+          <div
             key={project.id}
-            href={selectionMode ? '#' : project.url}
-            target={selectionMode ? undefined : "_blank"}
-            rel={selectionMode ? undefined : "noreferrer"}
-            onClick={(e) => handleProjectClick(e, project.id)}
-            className={`group relative block rounded-lg border px-4 py-3 transition-all duration-200 ${selectionMode
-                ? 'cursor-pointer hover:bg-[#252525]'
-                : 'hover:bg-[#252525] hover:border-[#444]'
-              } ${isSelected
+            role="button"
+            tabIndex={0}
+            onClick={() => handleProjectToggle(project.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleProjectToggle(project.id);
+              }
+            }}
+            className={`group relative rounded-lg border px-4 py-3 transition-all duration-200 cursor-pointer hover:bg-[#252525] hover:border-[#444] ${isSelected
                 ? 'border-purple-500 bg-[#252525]'
                 : 'border-[#333] bg-[#1e1e1e]'
               }`}
           >
-            {/* Checkbox in selection mode */}
-            {selectionMode && (
-              <div className="absolute top-3 left-3">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => { }}
-                  className="size-4 rounded border-[#444] bg-[#1e1e1e] text-purple-500 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
-                />
-              </div>
-            )}
+            <div className="absolute top-3 left-3">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(event) => {
+                  event.stopPropagation();
+                  handleProjectToggle(project.id);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                className="size-4 rounded border-[#444] bg-[#1e1e1e] text-purple-500 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
+              />
+            </div>
 
-            {/* Source logo badge */}
-            <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-opacity">
+            {/* Source logo badge + external link */}
+            <div className="absolute top-3 right-3 flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
               <SourceLogo source={project.source} />
             </div>
 
             {/* Project icon and name */}
-            <div className={`flex items-start gap-2 pr-6 ${selectionMode ? 'pl-6' : ''}`}>
+            <div className="flex items-start gap-2 pr-6 pl-6">
               {project.icon && (
                 <span className="text-lg flex-shrink-0 mt-0.5">{project.icon}</span>
               )}
@@ -170,7 +171,21 @@ export default function UnifiedProjectsList({
                 Due: {new Date(project.targetDate).toLocaleDateString()}
               </div>
             )}
-          </a>
+
+            {project.source !== TaskSources.App && project.url && (
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open in Linear"
+                  title="Open in Linear"
+                  className="inline-flex mt-2 items-center gap-1 rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2a2a]"
+                >
+                  <ExternalLinkIcon className="size-3.5" />
+                  Open in {project.source}
+                </a>
+              )}
+          </div>
         );
       })}
     </div>

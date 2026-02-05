@@ -129,7 +129,6 @@ export default function IndexPageClient() {
                 projects={allProjects}
                 isLoading={isLoading}
                 error={error}
-                selectionMode={true}
                 selectedProjectIds={selectedProjectIds}
                 onProjectToggle={handleProjectToggle}
               />
