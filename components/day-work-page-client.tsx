@@ -157,7 +157,7 @@ export default function DayWorkPageClient() {
 
               {/* Work Log Section */}
               <div className="flex w-full gap-4 mb-4">
-                <div className="flex-1">
+                <div className="flex-2">
                   <WorkLog focusedProjects={focusedProjects} onWorkLogChange={setWorkLog} />
                 </div>
                 <div className="flex-1 border-l border-[#333] pl-4">

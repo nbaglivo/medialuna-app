@@ -470,7 +470,7 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
       </div>
 
       {/* Work Items List */}
-      <div className="space-y-2">
+      <div className="space-y-2 overflow-y-auto">
         {workItems.length === 0 && !showProjectSelector && (
           <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
             <p className="text-zinc-500 text-sm">No tasks logged yet</p>
@@ -543,211 +543,97 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
             </div>
           );
         })}
+      </div>
 
-        {/* Project Selector (shown when adding task) */}
-        {showProjectSelector && (
-          <div className="p-4 rounded-lg border border-purple-500 bg-[#1a1a1a] space-y-3">
-            <p className="text-sm text-zinc-300">Link "{newTaskDescription}" to:</p>
+      {/* Record New Work Item Input */}
+      {!showProjectSelector && (
+        <div className="relative">
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
+            <div className="flex-shrink-0">
+              <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
+            </div>
             
-            <div className="grid grid-cols-1 gap-2">
-              <select
-                value={selectedProjectId}
-                onChange={(e) => {
-                  setSelectedProjectId(e.target.value);
-                  if (e.target.value !== UNPLANNED_PROJECT_ID) {
-                    setUnplannedReason('');
-                  }
-                }}
-                className="w-full px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                autoFocus
-              >
-                <option value="">Select a project...</option>
-                {focusedProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.icon ? `${project.icon} ` : ''}{project.name}
-                  </option>
-                ))}
-                <option value={UNPLANNED_PROJECT_ID}>Mark as unplanned work</option>
-              </select>
-
-              {isUnplannedSelected && (
-                <>
-                  <select
-                    value={unplannedReason}
-                    onChange={(e) => {
-                      setUnplannedReason(e.target.value as UnplannedReason);
-                      if (e.target.value !== 'Other') {
-                        setCustomReason('');
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="">Select a reason...</option>
-                    {UNPLANNED_REASONS.map((reason) => (
-                      <option key={reason} value={reason}>
-                        {reason}
-                      </option>
-                    ))}
-                  </select>
-
-                  {isOtherSelected && (
-                    <input
-                      type="text"
-                      value={customReason}
-                      onChange={(e) => setCustomReason(e.target.value)}
-                      placeholder="Specify reason..."
-                      className="w-full px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  )}
-                </>
-              )}
-
-              {/* Duration Input (optional) */}
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-400">Time spent (optional)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(e.target.value)}
-                    placeholder="0"
-                    className="w-20 px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                  <span className="text-sm text-zinc-400">hours</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(e.target.value)}
-                    placeholder="0"
-                    className="w-20 px-3 py-2 bg-[#111] border border-[#333] rounded-md text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                  <span className="text-sm text-zinc-400">minutes</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleAddTask}
-                disabled={
-                  !selectedProjectId || 
-                  (isUnplannedSelected && !unplannedReason) ||
-                  (isUnplannedSelected && isOtherSelected && !customReason.trim())
-                }
-                className="px-3 py-1.5 rounded-md bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Task
-              </button>
-              <button
-                onClick={() => {
-                  setShowProjectSelector(false);
-                  setSelectedProjectId('');
-                  setUnplannedReason('');
-                  setCustomReason('');
-                  inputRef.current?.focus();
-                }}
-                className="px-3 py-1.5 rounded-md bg-[#1e1e1e] text-zinc-300 text-sm border border-[#333] hover:bg-[#252525] transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={newTaskDescription}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Record a new work item... (type @ to mention issues)"
+              className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
+            />
           </div>
-        )}
 
-        {/* Record New Work Item Input */}
-        {!showProjectSelector && (
-          <div className="relative">
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
-              <div className="flex-shrink-0">
-                <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
-              </div>
-              
-              <input
-                ref={inputRef}
-                type="text"
-                value={newTaskDescription}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Record a new work item... (type @ to mention issues)"
-                className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
-              />
-            </div>
-
-            {/* @ Mention Dropdown */}
-            {showMentionDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 p-2 rounded-lg border border-purple-500 bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
-                {isLoadingIssues ? (
-                  <div className="py-4 text-center text-sm text-zinc-500">
-                    Loading issues...
-                  </div>
-                ) : getFilteredIssues().length === 0 ? (
-                  <div className="py-4 text-center text-sm text-zinc-500">
-                    {linearIssues.length === 0 
-                      ? 'No Linear issues found for focused projects'
-                      : `No issues matching "${mentionQuery}"`
-                    }
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {getFilteredIssues().map((issue, index) => {
-                      const stateName = issue.state?.name?.toLowerCase() || '';
-                      const isInProgress = stateName.includes('progress') || stateName === 'in progress';
-                      const isSelected = index === selectedMentionIndex;
-                      
-                      return (
-                        <button
-                          key={issue.id}
-                          onClick={() => selectMention(issue)}
-                          className={`w-full text-left p-2 rounded-md transition-colors ${
-                            isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
-                              {issue.identifier}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-white line-clamp-2">
-                                {issue.title}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                {issue.state && (
-                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                    isInProgress 
-                                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                                      : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
-                                  }`}>
-                                    {issue.state.name}
-                                  </span>
-                                )}
-                                {issue.project && (
-                                  <span className="text-xs text-zinc-500">
-                                    {issue.project.name}
-                                  </span>
-                                )}
-                              </div>
+          {/* @ Mention Dropdown */}
+          {showMentionDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 p-2 rounded-lg border border-purple-500 bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
+              {isLoadingIssues ? (
+                <div className="py-4 text-center text-sm text-zinc-500">
+                  Loading issues...
+                </div>
+              ) : getFilteredIssues().length === 0 ? (
+                <div className="py-4 text-center text-sm text-zinc-500">
+                  {linearIssues.length === 0 
+                    ? 'No Linear issues found for focused projects'
+                    : `No issues matching "${mentionQuery}"`
+                  }
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {getFilteredIssues().map((issue, index) => {
+                    const stateName = issue.state?.name?.toLowerCase() || '';
+                    const isInProgress = stateName.includes('progress') || stateName === 'in progress';
+                    const isSelected = index === selectedMentionIndex;
+                    
+                    return (
+                      <button
+                        key={issue.id}
+                        onClick={() => selectMention(issue)}
+                        className={`w-full text-left p-2 rounded-md transition-colors ${
+                          isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
+                            {issue.identifier}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white line-clamp-2">
+                              {issue.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {issue.state && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  isInProgress 
+                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                    : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
+                                }`}>
+                                  {issue.state.name}
+                                </span>
+                              )}
+                              {issue.project && (
+                                <span className="text-xs text-zinc-500">
+                                  {issue.project.name}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {!isLoadingIssues && getFilteredIssues().length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
-                    Use ↑↓ to navigate, Enter to select, Esc to close
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {!isLoadingIssues && getFilteredIssues().length > 0 && (
+                <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
+                  Use ↑↓ to navigate, Enter to select, Esc to close
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
