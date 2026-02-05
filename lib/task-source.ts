@@ -1,7 +1,7 @@
 export const TaskSources = {
-  Github: 'github',
-  Linear: 'linear',
-  App: 'app'
+  Github: 'GitHub',
+  Linear: 'Linear',
+  App: 'App'
 } as const;
 
 export type TaskSource = (typeof TaskSources)[keyof typeof TaskSources];

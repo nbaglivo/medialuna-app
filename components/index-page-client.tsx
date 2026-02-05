@@ -118,7 +118,7 @@ export default function IndexPageClient() {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-white">Projects</h2>
                   <p className="text-zinc-400 mt-1 text-sm sm:text-base">
-                    All projects your are involved in.
+                    These are the projects you are involved in. Select the projects you want to focus on for today.
                   </p>
                 </div>
               </div>

@@ -101,30 +101,18 @@ export default function UnifiedProjectsList({
               }
             }}
             className={`group relative rounded-lg border px-4 py-3 transition-all duration-200 cursor-pointer hover:bg-[#252525] hover:border-[#444] ${isSelected
-                ? 'border-purple-500 bg-[#252525]'
+                ? 'border-purple-500 bg-[#252525] scale-[0.97] hover:border-purple-500'
                 : 'border-[#333] bg-[#1e1e1e]'
               }`}
           >
-            <div className="absolute top-3 left-3">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(event) => {
-                  event.stopPropagation();
-                  handleProjectToggle(project.id);
-                }}
-                onClick={(event) => event.stopPropagation()}
-                className="size-4 rounded border-[#444] bg-[#1e1e1e] text-purple-500 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
-              />
-            </div>
 
-            {/* Source logo badge + external link */}
+            {/* Source logo badge */}
             <div className="absolute top-3 right-3 flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
               <SourceLogo source={project.source} />
             </div>
 
             {/* Project icon and name */}
-            <div className="flex items-start gap-2 pr-6 pl-6">
+            <div className="flex items-start gap-2 pr-6">
               {project.icon && (
                 <span className="text-lg flex-shrink-0 mt-0.5">{project.icon}</span>
               )}
