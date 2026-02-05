@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import {
@@ -8,18 +8,20 @@ import {
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { saveDayPlanSession, saveFocusSession } from '@/lib/focus-storage';
+import { getDayPlanSession, saveDayPlanSession } from '@/lib/focus-storage';
 import { startDayPlan } from '@/app/actions/day-plan';
 
 
 export default function IndexPageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isStarting, setIsStarting] = useState(false);
+  const allowProjects = searchParams.get('mode') === 'projects';
 
   const statusOptions = useMemo(() => {
     const options = new Set<string>();
@@ -71,9 +73,6 @@ export default function IndexPageClient() {
 
       saveDayPlanSession(dayPlanId, planDate);
 
-      // Save to session storage
-      saveFocusSession(Array.from(selectedProjectIds));
-
       // Navigate to day work page
       router.push('/day-work');
     } catch (error) {
@@ -86,6 +85,12 @@ export default function IndexPageClient() {
     const abortController = new AbortController();
 
     async function loadAllProjects() {
+      const dayPlanSession = getDayPlanSession();
+      if (dayPlanSession && !allowProjects) {
+        router.replace('/day-work');
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       
@@ -126,7 +131,7 @@ export default function IndexPageClient() {
     return () => {
       abortController.abort();
     };
-  }, []);
+  }, [allowProjects, router]);
 
   useEffect(() => {
     if (selectedStatus !== 'All' && !statusOptions.includes(selectedStatus)) {

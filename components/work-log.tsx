@@ -12,6 +12,7 @@ import {
   removeWorkLogItem,
   getDayPlanSession,
   saveDayPlanSession,
+  setWorkLogItems,
 } from '@/lib/focus-storage';
 import {
   startDayPlan,
@@ -22,6 +23,7 @@ import {
 
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
+  initialItems?: WorkLogItem[];
   onWorkLogChange: (workLog: WorkLogItem[]) => void;
 };
 
@@ -40,7 +42,7 @@ type LinearIssue = {
 
 const UNPLANNED_PROJECT_ID = '__unplanned__';
 
-export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogProps) {
+export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
@@ -63,14 +65,19 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
     onWorkLogChange(workItems);
   }, [workItems]);
 
-  // Load work log on mount
   useEffect(() => {
-    loadWorkLog();
+    if (initialItems) {
+      setWorkItems(initialItems);
+      setWorkLogItems(initialItems);
+    } else {
+      loadWorkLog();
+    }
+
     const session = getDayPlanSession();
     if (session) {
       setDayPlanId(session.dayPlanId);
     }
-  }, []);
+  }, [initialItems]);
 
   // Load Linear issues when focused projects change
   useEffect(() => {
@@ -182,15 +189,22 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
 
   const handleAddTask = async () => {
     if (!newTaskDescription.trim()) return;
+
+    const inferredProjectId =
+      selectedProjectId || (focusedProjects.length === 1 ? focusedProjects[0].id : '');
     
     // If no project selected, show selector
-    if (!selectedProjectId) {
+    if (!inferredProjectId) {
       setShowProjectSelector(true);
       return;
     }
 
     // Validate unplanned reason if needed
-    const isUnplanned = selectedProjectId === UNPLANNED_PROJECT_ID;
+    if (!selectedProjectId && inferredProjectId) {
+      setSelectedProjectId(inferredProjectId);
+    }
+
+    const isUnplanned = inferredProjectId === UNPLANNED_PROJECT_ID;
     if (isUnplanned && !unplannedReason) {
       return;
     }
@@ -214,7 +228,7 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
 
       const newItem = addWorkLogItem({
         description: newTaskDescription.trim(),
-        projectId: isUnplanned ? null : selectedProjectId,
+        projectId: isUnplanned ? null : inferredProjectId,
         unplannedReason: finalReason,
         mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
         duration: totalMinutes > 0 ? totalMinutes : undefined,
@@ -458,6 +472,10 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
 
   const isUnplannedSelected = selectedProjectId === UNPLANNED_PROJECT_ID;
   const isOtherSelected = unplannedReason === 'Other';
+  const canSubmitTask = Boolean(
+    selectedProjectId &&
+      (!isUnplannedSelected || (unplannedReason && (!isOtherSelected || customReason.trim())))
+  );
 
   return (
     <div className="space-y-4">
@@ -632,6 +650,118 @@ export default function WorkLog({ focusedProjects, onWorkLogChange }: WorkLogPro
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {showProjectSelector && (
+        <div className="rounded-lg border border-[#333] bg-[#1a1a1a] p-4">
+          <div className="text-sm text-zinc-400">Select a project for this work item</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {focusedProjects.map(project => {
+              const isSelected = selectedProjectId === project.id;
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    isSelected
+                      ? 'border-purple-500 text-purple-300 bg-purple-500/10'
+                      : 'border-[#333] text-zinc-300 hover:border-purple-500/40'
+                  }`}
+                >
+                  {project.icon && <span className="mr-1">{project.icon}</span>}
+                  {project.name}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setSelectedProjectId(UNPLANNED_PROJECT_ID)}
+              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                isUnplannedSelected
+                  ? 'border-amber-400 text-amber-300 bg-amber-500/10'
+                  : 'border-[#333] text-zinc-300 hover:border-amber-500/40'
+              }`}
+            >
+              Unplanned
+            </button>
+          </div>
+
+          {isUnplannedSelected && (
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs text-zinc-400" htmlFor="unplanned-reason">
+                Reason
+              </label>
+              <select
+                id="unplanned-reason"
+                value={unplannedReason}
+                onChange={event => setUnplannedReason(event.target.value as UnplannedReason)}
+                className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              >
+                <option value="">Select reason</option>
+                {UNPLANNED_REASONS.map(reason => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+              {isOtherSelected && (
+                <input
+                  type="text"
+                  value={customReason}
+                  onChange={event => setCustomReason(event.target.value)}
+                  placeholder="Custom reason"
+                  className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                />
+              )}
+            </div>
+          )}
+
+          <div className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
+            <span>Duration</span>
+            <input
+              type="number"
+              min="0"
+              value={durationHours}
+              onChange={event => setDurationHours(event.target.value)}
+              className="w-16 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+              placeholder="0"
+            />
+            <span>h</span>
+            <input
+              type="number"
+              min="0"
+              value={durationMinutes}
+              onChange={event => setDurationMinutes(event.target.value)}
+              className="w-16 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+              placeholder="0"
+            />
+            <span>m</span>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowProjectSelector(false);
+                setSelectedProjectId('');
+                setUnplannedReason('');
+                setCustomReason('');
+              }}
+              className="px-3 py-1.5 rounded-md border border-[#333] text-xs text-zinc-300 hover:border-zinc-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddTask}
+              disabled={!canSubmitTask}
+              className="px-3 py-1.5 rounded-md border border-purple-500 text-xs text-white hover:bg-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add task
+            </button>
+          </div>
         </div>
       )}
 

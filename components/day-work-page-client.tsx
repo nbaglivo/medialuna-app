@@ -7,11 +7,14 @@ import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import WorkLog from '@/components/work-log';
 import { 
+  TaskSources,
+  type TaskSource,
   type UnifiedProject, 
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { getDayWorkSession, WorkLogItem } from '@/lib/focus-storage';
+import { getDayPlanSession, WorkLogItem } from '@/lib/focus-storage';
+import { type DayPlanProjectRecord, getDayPlanProjects, getDayPlanWorkLog } from '@/app/actions/day-plan';
 
 export default function DayWorkPageClient() {
   const router = useRouter();
@@ -19,6 +22,7 @@ export default function DayWorkPageClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workLog, setWorkLog] = useState<WorkLogItem[] | []>([]);
+  const [initialWorkLog, setInitialWorkLog] = useState<WorkLogItem[] | []>([]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -27,16 +31,21 @@ export default function DayWorkPageClient() {
       setIsLoading(true);
       setError(null);
 
-      // Get focus session
-      const session = getDayWorkSession();
-      
-      if (!session || session.projectIds.length === 0) {
-        // No focus session or expired, redirect to main page
-        router.push('/');
+      const session = getDayPlanSession();
+      if (!session) {
+        router.replace('/');
         return;
       }
 
-      // Fetch all projects
+      let dayPlanProjects: DayPlanProjectRecord[] = [];
+      try {
+        dayPlanProjects = await getDayPlanProjects(session.dayPlanId);
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.warn('Error loading day plan projects:', error);
+        }
+      }
+
       const projectsFromAllSources: UnifiedProject[] = [];
 
       // Fetch Linear projects
@@ -60,13 +69,40 @@ export default function DayWorkPageClient() {
       // TODO: Add GitHub projects fetch when API is ready
       // TODO: Add App projects fetch when API is ready
 
-      // Filter to only focused projects
-      const focused = projectsFromAllSources.filter(project => 
-        session.projectIds.includes(project.id)
-      );
+      const focused = dayPlanProjects.map(project => {
+        const match = projectsFromAllSources.find(sourceProject => sourceProject.id === project.projectId);
+        if (match) return match;
+
+        return {
+          id: project.projectId,
+          name: project.projectName ?? 'Unknown Project',
+          url: '',
+          source: (project.projectSource ? project.projectSource as TaskSource : TaskSources.App),
+        };
+      });
+
+      let workLogItems: WorkLogItem[] = [];
+      try {
+        const dayPlanWorkLog = await getDayPlanWorkLog(session.dayPlanId);
+        workLogItems = dayPlanWorkLog.map(item => ({
+          id: item.id,
+          description: item.description,
+          timestamp: item.timestamp,
+          projectId: item.projectId,
+          unplannedReason: item.unplannedReason ?? undefined,
+          mentionedIssues: item.mentionedIssues ?? undefined,
+          duration: item.durationMinutes ?? undefined,
+        }));
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.warn('Error loading work log:', error);
+        }
+      }
 
       if (!abortController.signal.aborted) {
         setFocusedProjects(focused);
+        setInitialWorkLog(workLogItems);
+        setWorkLog(workLogItems);
         setIsLoading(false);
       }
     }
@@ -87,7 +123,7 @@ export default function DayWorkPageClient() {
             <div>
               <div className="flex items-center gap-3">
                 <Link
-                  href="/"
+                  href="/?mode=projects"
                   className="p-2 rounded-full hover:bg-[#252525] transition-colors"
                   title="Back to all projects"
                 >
@@ -158,7 +194,11 @@ export default function DayWorkPageClient() {
               {/* Work Log Section */}
               <div className="flex w-full gap-4 mb-4">
                 <div className="flex-2">
-                  <WorkLog focusedProjects={focusedProjects} onWorkLogChange={setWorkLog} />
+                  <WorkLog
+                    focusedProjects={focusedProjects}
+                    initialItems={initialWorkLog}
+                    onWorkLogChange={setWorkLog}
+                  />
                 </div>
                 <div className="flex-1 border-l border-[#333] pl-4">
                   <WorkLogSummary workLog={workLog} />

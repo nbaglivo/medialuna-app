@@ -218,6 +218,14 @@ function saveWorkLogSession(session: WorkLogSession): void {
   localStorage.setItem(WORK_LOG_STORAGE_KEY, JSON.stringify(session));
 }
 
+export function setWorkLogItems(items: WorkLogItem[]): void {
+  if (typeof window === 'undefined') return;
+  saveWorkLogSession({
+    items,
+    timestamp: Date.now(),
+  });
+}
+
 /**
  * Get the current work log session from local storage
  * Returns null if no session exists or if expired

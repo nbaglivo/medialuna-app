@@ -19,6 +19,23 @@ export type WorkLogItemInput = {
   durationMinutes?: number | null;
 };
 
+export type DayPlanProjectRecord = {
+  projectId: string;
+  projectSource: string;
+  projectName: string | null;
+};
+
+export type DayPlanWorkLogRecord = {
+  id: string;
+  description: string;
+  timestamp: number;
+  projectId: string | null;
+  projectSource: string | null;
+  unplannedReason: string | null;
+  mentionedIssues: Record<string, string> | null;
+  durationMinutes: number | null;
+};
+
 type StartDayPlanInput = {
   planDate: string;
   timezone?: string | null;
@@ -173,4 +190,48 @@ export async function updateDayPlanReflection({ dayPlanId, reflection }: UpdateD
   }
 
   return { ok: true };
+}
+
+export async function getDayPlanProjects(dayPlanId: string): Promise<DayPlanProjectRecord[]> {
+  const supabase = createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('day_plan_projects')
+    .select('project_id, project_source, project_name')
+    .eq('day_plan_id', dayPlanId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(project => ({
+    projectId: project.project_id,
+    projectSource: project.project_source,
+    projectName: project.project_name ?? null,
+  }));
+}
+
+export async function getDayPlanWorkLog(dayPlanId: string): Promise<DayPlanWorkLogRecord[]> {
+  const supabase = createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('work_log_items')
+    .select('id, description, timestamp, project_id, project_source, unplanned_reason, mentioned_issues, duration_minutes')
+    .eq('day_plan_id', dayPlanId)
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(item => ({
+    id: item.id,
+    description: item.description,
+    timestamp: new Date(item.timestamp).getTime(),
+    projectId: item.project_id,
+    projectSource: item.project_source ?? null,
+    unplannedReason: item.unplanned_reason ?? null,
+    mentionedIssues: item.mentioned_issues ?? null,
+    durationMinutes: item.duration_minutes ?? null,
+  }));
 }

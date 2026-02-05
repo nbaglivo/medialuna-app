@@ -6,15 +6,13 @@ import { ArrowLeftIcon, CheckIcon, CopyIcon } from '@radix-ui/react-icons';
 import {
   type WorkLogItem,
   type DaySummaryStatistics,
-  getWorkLog,
   saveDaySummary,
   clearCurrentDay,
-  getDayWorkSession,
   getDayPlanSession,
-  saveDayPlanSession,
+  setWorkLogItems,
 } from '@/lib/focus-storage';
-import { type UnifiedProject, type LinearProject, normalizeLinearProject } from '@/lib/task-source';
-import { startDayPlan, updateDayPlanReflection } from '@/app/actions/day-plan';
+import { TaskSources, type TaskSource, type UnifiedProject } from '@/lib/task-source';
+import { getDayPlanProjects, getDayPlanWorkLog, updateDayPlanReflection } from '@/app/actions/day-plan';
 
 export default function DaySummary() {
   const router = useRouter();
@@ -28,15 +26,15 @@ export default function DaySummary() {
   const reflectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
     const session = getDayPlanSession();
-    if (session) {
-      setDayPlanId(session.dayPlanId);
+    if (!session) {
+      router.replace('/');
+      return;
     }
-  }, []);
+
+    setDayPlanId(session.dayPlanId);
+    loadData(session.dayPlanId);
+  }, [router]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -58,31 +56,38 @@ export default function DaySummary() {
     };
   }, [reflection, isLoading, focusedProjects]);
 
-  const loadData = async () => {
+  const loadData = async (activeDayPlanId: string) => {
     setIsLoading(true);
 
-    // Get work items
-    const items = getWorkLog();
-    setWorkItems(items);
+    try {
+      const [dayPlanProjects, dayPlanWorkLog] = await Promise.all([
+        getDayPlanProjects(activeDayPlanId),
+        getDayPlanWorkLog(activeDayPlanId),
+      ]);
 
-    // Get focused projects
-    const session = getDayWorkSession();
-    if (session) {
-      try {
-        const linearResponse = await fetch('/api/linear/projects');
-        if (linearResponse.ok) {
-          const linearPayload = await linearResponse.json();
-          const linearProjects: LinearProject[] = linearPayload.projects ?? [];
-          const normalizedLinear = linearProjects.map(normalizeLinearProject);
-          
-          const focused = normalizedLinear.filter(project => 
-            session.projectIds.includes(project.id)
-          );
-          setFocusedProjects(focused);
-        }
-      } catch (error) {
-        console.error('Error loading projects:', error);
-      }
+      const items = dayPlanWorkLog.map(item => ({
+        id: item.id,
+        description: item.description,
+        timestamp: item.timestamp,
+        projectId: item.projectId,
+        unplannedReason: item.unplannedReason ?? undefined,
+        mentionedIssues: item.mentionedIssues ?? undefined,
+        duration: item.durationMinutes ?? undefined,
+      }));
+
+      setWorkItems(items);
+      setWorkLogItems(items);
+
+      const focused = dayPlanProjects.map(project => ({
+        id: project.projectId,
+        name: project.projectName ?? 'Unknown Project',
+        url: '',
+        source: (project.projectSource ? project.projectSource as TaskSource : TaskSources.App),
+      }));
+
+      setFocusedProjects(focused);
+    } catch (error) {
+      console.error('Error loading day plan data:', error);
     }
 
     setIsLoading(false);
@@ -94,22 +99,7 @@ export default function DaySummary() {
       setDayPlanId(session.dayPlanId);
       return session.dayPlanId;
     }
-
-    if (focusedProjects.length === 0) return null;
-
-    const planDate = new Date().toISOString().split('T')[0];
-    const { dayPlanId: createdId } = await startDayPlan({
-      planDate,
-      projects: focusedProjects.map(project => ({
-        projectId: project.id,
-        projectSource: project.source,
-        projectName: project.name,
-      })),
-    });
-
-    saveDayPlanSession(createdId, planDate);
-    setDayPlanId(createdId);
-    return createdId;
+    return null;
   };
 
   const handleReflectionAutosave = async () => {
@@ -239,7 +229,8 @@ export default function DaySummary() {
   };
 
   const handleCancel = () => {
-    router.push('/day-work');
+    const session = getDayPlanSession();
+    router.push(session ? '/day-work' : '/');
   };
 
   if (isLoading) {
@@ -258,7 +249,7 @@ export default function DaySummary() {
       <div className="flex flex-col items-center justify-center h-screen">
         <p className="text-zinc-400 mb-4">No work logged today</p>
         <button
-          onClick={() => router.push('/day-work')}
+          onClick={handleCancel}
           className="px-4 py-2 rounded-md bg-purple-500 text-white hover:bg-purple-600 transition-colors"
         >
           Go Back
