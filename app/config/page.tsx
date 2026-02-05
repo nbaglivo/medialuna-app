@@ -11,7 +11,7 @@ type ReadonlyRequestCookiesType = Awaited<ReturnType<typeof cookies>>;
 
 export default async function ConfigPage({ searchParams }: { searchParams: Promise<{ integration: TaskSource | null }> }) {
   const cookieStore = await cookies();
-  const integration = (await searchParams).integration;
+  const integration = (await searchParams).integration ?? TaskSources.Linear;
 
   return (
     <div className="w-full h-full flex px-6 py-12">
@@ -22,8 +22,8 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         <div className="space-y-3">
           <h2 className="text-xs uppercase tracking-[0.2em] text-zinc-500">Integrations</h2>
           <div className="flex flex-col gap-4 min-w-md rounded-lg border border-[#262626] bg-[#151515] p-4 space-y-4">
-            {integration === TaskSources.Linear && <LinearIntegrationConfig cookieStore={cookieStore} />}
-            {integration === TaskSources.Github && <GitHubIntegrationConfig />}
+            {isTaskSource(integration, TaskSources.Linear) && <LinearIntegrationConfig cookieStore={cookieStore} />}
+            {isTaskSource(integration, TaskSources.Github) && <GitHubIntegrationConfig />}
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@ async function LinearIntegrationConfig({ cookieStore }: { cookieStore: ReadonlyR
   );
 }
 
-async function GitHubIntegrationConfig({ cookieStore }: { cookieStore: ReadonlyRequestCookiesType }) {
+async function GitHubIntegrationConfig() {
   return (
     <div>
       <div className="flex flex-col gap-12">
@@ -144,6 +144,11 @@ async function GitHubIntegrationConfig({ cookieStore }: { cookieStore: ReadonlyR
       </div>
     </div>
   );
+}
+
+function isTaskSource(param: string | null, source: TaskSource): boolean {
+  if (!param) return false;
+  return param.toUpperCase() === source.toUpperCase();
 }
 
 function cn(...classes: string[]) {
@@ -164,7 +169,7 @@ const IntegrationMenu = ({
         <Link href="/config?integration=linear"
           className={cn(
             "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
-            activeIntegration === TaskSources.Linear
+            isTaskSource(activeIntegration, TaskSources.Linear)
               ? "bg-zinc-700"
               : "text-zinc-400 hover:bg-[#262626] hover:text-zinc-300"
           )}
@@ -173,21 +178,21 @@ const IntegrationMenu = ({
           <div className="font-bold">
             <img src="https://linear.app/favicon.ico" alt="Linear icon" width={16} height={16} />
           </div>
-          {activeIntegration === TaskSources.Linear && (
+          {isTaskSource(activeIntegration, TaskSources.Linear) && (
             <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-indigo-500 rounded-r-sm" />
           )}
         </Link>
         <Link href="/config?integration=github"
           className={cn(
             "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
-            activeIntegration === TaskSources.Github
+            isTaskSource(activeIntegration, TaskSources.Github)
               ? "bg-zinc-700"
               : "text-zinc-400 hover:bg-[#262626] hover:text-zinc-300"
           )}
           aria-label="GitHub Integration"
         >
           <GitHubLogoIcon className="size-4" />
-          {activeIntegration === TaskSources.Github && (
+          {isTaskSource(activeIntegration, TaskSources.Github) && (
             <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-indigo-500 rounded-r-sm" />
           )}
         </Link>
