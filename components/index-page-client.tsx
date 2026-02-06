@@ -8,7 +8,7 @@ import {
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { saveDayPlanSession, saveFocusSession } from '@/lib/focus-storage';
+import { getDayPlanSession, saveDayPlanSession } from '@/lib/focus-storage';
 import { startDayPlan } from '@/app/actions/day-plan';
 
 
@@ -71,9 +71,6 @@ export default function IndexPageClient() {
 
       saveDayPlanSession(dayPlanId, planDate);
 
-      // Save to session storage
-      saveFocusSession(Array.from(selectedProjectIds));
-
       // Navigate to day work page
       router.push('/day-work');
     } catch (error) {
@@ -86,6 +83,12 @@ export default function IndexPageClient() {
     const abortController = new AbortController();
 
     async function loadAllProjects() {
+      const dayPlanSession = getDayPlanSession();
+      if (dayPlanSession) {
+        router.replace('/day-work');
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       
@@ -126,7 +129,7 @@ export default function IndexPageClient() {
     return () => {
       abortController.abort();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (selectedStatus !== 'All' && !statusOptions.includes(selectedStatus)) {
