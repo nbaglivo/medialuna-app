@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import {
@@ -14,14 +14,12 @@ import { startDayPlan } from '@/app/actions/day-plan';
 
 export default function IndexPageClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isStarting, setIsStarting] = useState(false);
-  const allowProjects = searchParams.get('mode') === 'projects';
 
   const statusOptions = useMemo(() => {
     const options = new Set<string>();
@@ -86,7 +84,7 @@ export default function IndexPageClient() {
 
     async function loadAllProjects() {
       const dayPlanSession = getDayPlanSession();
-      if (dayPlanSession && !allowProjects) {
+      if (dayPlanSession) {
         router.replace('/day-work');
         return;
       }
@@ -131,7 +129,7 @@ export default function IndexPageClient() {
     return () => {
       abortController.abort();
     };
-  }, [allowProjects, router]);
+  }, [router]);
 
   useEffect(() => {
     if (selectedStatus !== 'All' && !statusOptions.includes(selectedStatus)) {
