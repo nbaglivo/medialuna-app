@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeftIcon } from '@radix-ui/react-icons';
+import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import WorkLog from '@/components/work-log';
 import { 
@@ -115,36 +115,6 @@ export default function DayWorkPageClient() {
   }, [router]);
 
   return (
-    <div className="flex flex-col bg-[#141414] h-full w-full">
-      {/* Header */}
-      <div className="border-b border-[#333] px-4 py-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/?mode=projects"
-                  className="p-2 rounded-full hover:bg-[#252525] transition-colors"
-                  title="Back to all projects"
-                >
-                  <ArrowLeftIcon className="text-zinc-400 size-4" />
-                </Link>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">Today's work</h1>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button onClick={() => router.push('/day-summary')}>
-                Close the Day
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <div className="max-w-7xl mx-auto">
           {isLoading ? (
@@ -172,43 +142,48 @@ export default function DayWorkPageClient() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-8">
-              {/* Focused Projects Section */}
-              <div>
-                <div className="mb-4">
-                  <h2 className="text-xl font-semibold text-white">Focus Projects</h2>
-                  <p className="text-sm text-zinc-400 mt-1">
-                    {focusedProjects.length > 1 ? 'Projects you\'re focusing on today' : 'Project you\'re focusing on today'}
-                  </p>
-                </div>
-                <UnifiedProjectsList
-                  projects={focusedProjects}
-                  isLoading={false}
-                  error={null}
+            <div className="space-y-8 flex flex-col md:flex-row gap-4">
+
+              {/* Work Log Section */}
+              <div className="flex-[1.5]">
+                <WorkLog
+                  focusedProjects={focusedProjects}
+                  initialItems={initialWorkLog}
+                  onWorkLogChange={setWorkLog}
                 />
               </div>
 
-              {/* Divider */}
-              <div className="border-t border-[#333]" />
-
-              {/* Work Log Section */}
-              <div className="flex w-full gap-4 mb-4">
-                <div className="flex-2">
-                  <WorkLog
-                    focusedProjects={focusedProjects}
-                    initialItems={initialWorkLog}
-                    onWorkLogChange={setWorkLog}
-                  />
-                </div>
-                <div className="flex-1 border-l border-[#333] pl-4">
-                  <WorkLogSummary workLog={workLog} />
-                </div>
+              <div className="flex-1 ">
+                {/* Focused Projects Section */}
+                <FocusedProjects projects={focusedProjects} />
+                <WorkLogSummary workLog={workLog} />
               </div>
             </div>
           )}
         </div>
       </div>
+  );
+}
+
+function FocusedProjects({ projects }: { projects: UnifiedProject[] }) {
+  return (
+    <div>
+    <div className="mb-4">
+      <p className="text-sm text-zinc-400 mt-1">
+        {projects.length > 1 ? 'Projects you\'re focusing on today' : 'Project you\'re focusing on today'}
+      </p>
     </div>
+    <div className="flex flex-col gap-2">
+      {projects.map(project => (
+        <div key={project.id} className="flex flex-row items-center justify-between gap-2 bg-[#1A1A1A] p-2 rounded-md">
+          <h3 className="text-md font-semibold text-white">{project.name}</h3>
+          <a href={project.url} target="_blank" rel="noopener noreferrer" className="text-sm text-zinc-400 p-1 rounded-sm hover:bg-zinc-800 transition-colors flex items-center gap-1">
+            <ExternalLinkIcon className="size-4" />
+          </a>
+        </div>
+      ))}
+    </div>
+  </div>
   );
 }
 
@@ -216,10 +191,8 @@ function WorkLogSummary({ workLog }: { workLog: WorkLogItem[] }) {
   const workLogSummary = getWorkLogSummary(workLog);
   return (
     <div className="mt-4">
-      <h3 className="text-lg font-semibold text-white">Summary of your day so far</h3>
-
       <div className="flex flex-col gap-2 mt-4">
-        <div className="text-sm text-zinc-400">Time invested today: {workLogSummary.timeInvested} minutes</div>
+        <div className="text-sm text-zinc-400">Today you've invested {workLogSummary.timeInvestedInProjects} minutes in these projects and {workLogSummary.timeInvestedInOther} minutes in unplanned activities</div>
       </div>
     </div>
   );
@@ -227,21 +200,14 @@ function WorkLogSummary({ workLog }: { workLog: WorkLogItem[] }) {
 
 type WorkLogSummary = {
   timeInvested: number; // in minutes
+  timeInvestedInProjects: number; // in minutes
+  timeInvestedInOther: number; // in minutes
 };
 
 function getWorkLogSummary(workLog: WorkLogItem[]): WorkLogSummary {
   return {
     timeInvested: workLog.reduce((acc, item) => acc + (item.duration ?? 0), 0),
+    timeInvestedInProjects: workLog.reduce((acc, item) => item.projectId ? acc + (item.duration ?? 0) : acc, 0),
+    timeInvestedInOther: workLog.reduce((acc, item) => !item.projectId ? acc + (item.duration ?? 0) : acc, 0),
   };
-}
-
-function Button({ children, onClick }: { children: React.ReactNode, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="px-2 py-1 rounded-lg text-white font-medium cursor-pointer transition-colors hover:bg-[#252525]"
-    >
-      {children}
-    </button>
-  );
 }

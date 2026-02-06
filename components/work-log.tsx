@@ -481,9 +481,9 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">Work Log</h2>
+        {/* <h2 className="text-xl font-semibold text-white">Work Log</h2> */}
         <p className="text-sm text-zinc-400 mt-1">
-          Track what you've put time into today
+          Log your work here
         </p>
       </div>
 
@@ -492,7 +492,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
         {workItems.length === 0 && !showProjectSelector && (
           <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
             <p className="text-zinc-500 text-sm">No tasks logged yet</p>
-            <p className="text-zinc-600 text-xs mt-1">Add your first task below</p>
+            <p className="text-zinc-600 text-xs mt-1">Start logging your work below</p>
           </div>
         )}
         
@@ -759,7 +759,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
               disabled={!canSubmitTask}
               className="px-3 py-1.5 rounded-md border border-purple-500 text-xs text-white hover:bg-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add task
+              Log work
             </button>
           </div>
         </div>
