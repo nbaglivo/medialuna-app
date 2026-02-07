@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function DayWorkPage() {
   return (
-    <div className="flex flex-col bg-[#141414] h-full w-full">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#141414]">
       {/* Header */}
       <div className="border-b border-[#333] px-4 pt-12 pb-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
@@ -32,7 +32,7 @@ export default function DayWorkPage() {
           </div>
         </div>
       </div>
-      <DayWorkPageClient />;
+      <DayWorkPageClient />
     </div>
   )
 }

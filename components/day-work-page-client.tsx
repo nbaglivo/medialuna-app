@@ -115,8 +115,8 @@ export default function DayWorkPageClient() {
   }, [router]);
 
   return (
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="flex-1 min-h-0 overflow-hidden px-4 py-6 sm:px-6">
+        <div className="mx-auto h-full max-w-7xl">
           {isLoading ? (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -142,10 +142,10 @@ export default function DayWorkPageClient() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-8 flex flex-col md:flex-row gap-4">
+            <div className="flex h-full flex-col gap-4 md:flex-row">
 
               {/* Work Log Section */}
-              <div className="flex-[1.5]">
+              <div className="flex min-h-0 flex-[1.5] flex-col">
                 <WorkLog
                   focusedProjects={focusedProjects}
                   initialItems={initialWorkLog}
@@ -153,7 +153,7 @@ export default function DayWorkPageClient() {
                 />
               </div>
 
-              <div className="flex-1 ">
+              <div className="flex min-h-0 flex-1 flex-col">
                 {/* Focused Projects Section */}
                 <FocusedProjects projects={focusedProjects} />
                 <WorkLogSummary workLog={workLog} />

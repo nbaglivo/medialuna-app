@@ -316,7 +316,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {/* Header */}
       <div>
         {/* <h2 className="text-xl font-semibold text-white">Work Log</h2> */}
@@ -326,7 +326,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
       </div>
 
       {/* Work Items List */}
-      <div className="space-y-2 overflow-y-auto">
+      <div className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
         {workItems.length === 0 && !showProjectSelector && (
           <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
             <p className="text-zinc-500 text-sm">No tasks logged yet</p>
@@ -402,7 +402,9 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
       </div>
 
       {/* Record New Work Item Input */}
-      <RecordUnitOfWork linearIssues={linearIssues} focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
+      <div className="min-h-12">
+        <RecordUnitOfWork linearIssues={linearIssues} focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
+      </div>
     </div>
   );
 }
@@ -640,6 +642,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     <motion.div
       ref={ref}
       layout
+      transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
       initial={false}
 
       style={{
