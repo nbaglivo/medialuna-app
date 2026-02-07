@@ -41,7 +41,19 @@ type LinearIssue = {
   } | null;
 };
 
+type MentionOption = {
+  type: 'issue' | 'project';
+  label: string;
+  url: string;
+  issue?: LinearIssue;
+  project?: UnifiedProject;
+};
+
 const UNPLANNED_PROJECT_ID = '__unplanned__';
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
@@ -249,14 +261,18 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
   // Render description with clickable @mention links
   const renderDescription = (description: string, mentionedIssues?: Record<string, string>) => {
-    if (!mentionedIssues || Object.keys(mentionedIssues).length === 0) {
+    const mentionKeys = Object.keys(mentionedIssues ?? {}).filter(Boolean);
+    if (!mentionedIssues || mentionKeys.length === 0) {
       return <span>{description}</span>;
     }
 
     // Split by @mentions and render with links
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    const mentionRegex = /@([A-Z]+-\d+)/g;
+    const escapedKeys = [...mentionKeys]
+      .sort((a, b) => b.length - a.length)
+      .map(key => escapeRegExp(key));
+    const mentionRegex = new RegExp(`@(${escapedKeys.join('|')})`, 'g');
     let match;
 
     while ((match = mentionRegex.exec(description)) !== null) {
@@ -513,32 +529,37 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     setShowMentionDropdown(false);
   };
 
-  const selectMention = (issue: LinearIssue) => {
+  const selectMention = (mention: MentionOption) => {
     const beforeMention = newTaskDescription.substring(0, mentionStartPos);
     const afterMention = newTaskDescription.substring(mentionStartPos + mentionQuery.length + 1);
-    const newText = `${beforeMention}@${issue.identifier} ${afterMention}`;
+    const mentionLabel = mention.label.trim();
+    const newText = `${beforeMention}@${mentionLabel} ${afterMention}`;
     
     setNewTaskDescription(newText);
     setShowMentionDropdown(false);
     setMentionQuery('');
     
-    // Store the issue URL for linking later
+    // Store the URL for linking later
     setMentionedIssues(prev => ({
       ...prev,
-      [issue.identifier]: issue.url
+      [mentionLabel]: mention.url
     }));
     
-    // Auto-select project: try issue's project first, otherwise select first focused project
-    if (issue.project?.name) {
-      const project = focusedProjects.find(
-        p => p.name.toLowerCase() === issue.project?.name.toLowerCase()
-      );
-      if (project) {
-        setSelectedProjectId(project.id);
+    if (mention.type === 'project' && mention.project) {
+      setSelectedProjectId(mention.project.id);
+    } else if (mention.type === 'issue') {
+      // Auto-select project: try issue's project first, otherwise select first focused project
+      if (mention.issue?.project?.name) {
+        const project = focusedProjects.find(
+          p => p.name.toLowerCase() === mention.issue?.project?.name?.toLowerCase()
+        );
+        if (project) {
+          setSelectedProjectId(project.id);
+        }
+      } else if (focusedProjects.length > 0 && !selectedProjectId) {
+        // Auto-select first focused project if no project is selected yet
+        setSelectedProjectId(focusedProjects[0].id);
       }
-    } else if (focusedProjects.length > 0 && !selectedProjectId) {
-      // Auto-select first focused project if no project is selected yet
-      setSelectedProjectId(focusedProjects[0].id);
     }
     
     // TODO: Focus back on input: or just close?
@@ -547,29 +568,48 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     // }, 0);
   };
 
-  function getFilteredIssues() {
-    return linearIssues.filter(issue => {
-      const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
-      return searchStr.includes(mentionQuery);
-    });
+  function getFilteredMentions(): MentionOption[] {
+    const normalizedQuery = mentionQuery.trim().toLowerCase();
+    const issues = linearIssues
+      .filter(issue => {
+        const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
+        return searchStr.includes(normalizedQuery);
+      })
+      .map(issue => ({
+        type: 'issue' as const,
+        label: issue.identifier,
+        url: issue.url,
+        issue,
+      }));
+
+    const projects = focusedProjects
+      .filter(project => project.name.toLowerCase().includes(normalizedQuery))
+      .map(project => ({
+        type: 'project' as const,
+        label: project.name,
+        url: project.url,
+        project,
+      }));
+
+    return [...issues, ...projects];
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showMentionDropdown) {
-      const filteredIssues = getFilteredIssues();
+      const filteredMentions = getFilteredMentions();
       
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedMentionIndex(prev => 
-          prev < filteredIssues.length - 1 ? prev + 1 : prev
+          prev < filteredMentions.length - 1 ? prev + 1 : prev
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (filteredIssues.length > 0) {
-          selectMention(filteredIssues[selectedMentionIndex]);
+        if (filteredMentions.length > 0) {
+          selectMention(filteredMentions[selectedMentionIndex]);
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
@@ -637,7 +677,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
         }}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        placeholder="Record a new work item... (type @ to mention issues)"
+        placeholder="Record a new work item... (type @ to mention issues or projects)"
         className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 outline-none"
       />
 
@@ -648,8 +688,14 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
           //     Loading issues...
           //   </div>
           // ) : (
-        <div className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
-          <MentionDropdown selectedMentionIndex={selectedMentionIndex} onSelectMention={setSelectedMentionIndex} linearIssues={getFilteredIssues()} mentionQuery={mentionQuery} />
+        <div className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg z-10">
+          <MentionDropdown
+            selectedMentionIndex={selectedMentionIndex}
+            onSelectMention={setSelectedMentionIndex}
+            onPickMention={selectMention}
+            mentionOptions={getFilteredMentions()}
+            mentionQuery={mentionQuery}
+          />
         </div>
       )}
 
@@ -665,54 +711,88 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   );
 }
 
-function MentionDropdown({ selectedMentionIndex, onSelectMention, linearIssues, mentionQuery }: { selectedMentionIndex: number, onSelectMention: (index: number) => void, linearIssues: LinearIssue[], mentionQuery: string }) {
-
-  if (linearIssues.length === 0) {
+function MentionDropdown({
+  selectedMentionIndex,
+  onSelectMention,
+  onPickMention,
+  mentionOptions,
+  mentionQuery,
+}: {
+  selectedMentionIndex: number;
+  onSelectMention: (index: number) => void;
+  onPickMention: (mention: MentionOption) => void;
+  mentionOptions: MentionOption[];
+  mentionQuery: string;
+}) {
+  if (mentionOptions.length === 0) {
+    const message = mentionQuery
+      ? `No issues or projects matching "${mentionQuery}"`
+      : 'No issues or projects found for today\'s focus';
     return <div className="py-4 text-center text-sm text-zinc-500">
-      {linearIssues.length === 0 
-        ? 'No Linear issues found for today\'s projects'
-        : `No issues matching "${mentionQuery}"`
-      }
-    </div>
+      {message}
+    </div>;
   }
 
   return (
-    <div>
-      <div className="space-y-1">
-        {linearIssues.map((issue, index) => {
-          const stateName = issue.state?.name?.toLowerCase() || '';
+    <div className="">
+      <div className="space-y-1 max-h-64 overflow-y-auto">
+        {mentionOptions.map((mention, index) => {
+          const issue = mention.issue;
+          const project = mention.project;
+          const stateName = issue?.state?.name?.toLowerCase() || '';
           const isInProgress = stateName.includes('progress') || stateName === 'in progress';
           const isSelected = index === selectedMentionIndex;
           
           return (
             <button
-              key={issue.id}
-              onClick={() => onSelectMention(index)}
+              key={mention.type === 'issue' ? issue?.id : project?.id ?? mention.label}
+              onClick={() => {
+                onSelectMention(index);
+                onPickMention(mention);
+              }}
               className={`w-full text-left p-2 rounded-md transition-colors ${
                 isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
               }`}
             >
               <div className="flex items-start gap-2">
-                <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
-                  {issue.identifier}
-                </span>
+                {mention.type === 'issue' ? (
+                  <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
+                    {issue?.identifier}
+                  </span>
+                ) : (
+                  <span className="text-xs font-mono text-emerald-400 flex-shrink-0 mt-0.5">
+                    PRJ
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white line-clamp-2">
-                    {issue.title}
+                    {mention.type === 'issue' ? issue?.title : mention.label}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    {issue.state && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded border ${
+                      mention.type === 'issue'
+                        ? 'bg-purple-500/10 text-purple-300 border-purple-500/20'
+                        : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                    }`}>
+                      {mention.type === 'issue' ? 'Issue' : 'Project'}
+                    </span>
+                    {mention.type === 'issue' && issue?.state && (
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        isInProgress 
-                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                        isInProgress
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                           : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
                       }`}>
                         {issue.state.name}
                       </span>
                     )}
-                    {issue.project && (
+                    {mention.type === 'issue' && issue?.project && (
                       <span className="text-xs text-zinc-500">
                         {issue.project.name}
+                      </span>
+                    )}
+                    {mention.type === 'project' && project?.source && (
+                      <span className="text-xs text-zinc-500">
+                        {project.source}
                       </span>
                     )}
                   </div>
