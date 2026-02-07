@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import { TrashIcon, CheckIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
@@ -44,23 +45,16 @@ const UNPLANNED_PROJECT_ID = '__unplanned__';
 
 export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
-  const [newTaskDescription, setNewTaskDescription] = useState('');
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | ''>('');
   const [customReason, setCustomReason] = useState('');
-  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const [isLoadingIssues, setIsLoadingIssues] = useState(false);
-  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [mentionStartPos, setMentionStartPos] = useState<number>(0);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-  const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
   const [durationHours, setDurationHours] = useState<string>('');
   const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [dayPlanId, setDayPlanId] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  
   useEffect(() => {
     onWorkLogChange(workItems);
   }, [workItems]);
@@ -132,6 +126,31 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     return createdId;
   };
 
+  const onWorkLogAdded = async (newItem: WorkLogItem) => {
+    setWorkItems(prev => [...prev, newItem]);
+
+    const dayPlanIdValue = await ensureDayPlanId();
+    if (dayPlanIdValue) {
+      const projectSource = newItem.projectId
+        ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
+        : null;
+
+      await upsertWorkLogItem({
+        dayPlanId: dayPlanIdValue,
+        item: {
+          id: newItem.id,
+          description: newItem.description,
+          timestamp: newItem.timestamp,
+          projectId: newItem.projectId,
+          projectSource,
+          unplannedReason: newItem.unplannedReason,
+          mentionedIssues: newItem.mentionedIssues,
+          durationMinutes: newItem.duration ?? null,
+        },
+      });
+    }
+  };
+
   const loadWorkLog = () => {
     const items = getWorkLog();
     setWorkItems(items);
@@ -185,196 +204,6 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     } finally {
       setIsLoadingIssues(false);
     }
-  };
-
-  const handleAddTask = async () => {
-    if (!newTaskDescription.trim()) return;
-
-    const inferredProjectId =
-      selectedProjectId || (focusedProjects.length === 1 ? focusedProjects[0].id : '');
-    
-    // If no project selected, show selector
-    if (!inferredProjectId) {
-      setShowProjectSelector(true);
-      return;
-    }
-
-    // Validate unplanned reason if needed
-    if (!selectedProjectId && inferredProjectId) {
-      setSelectedProjectId(inferredProjectId);
-    }
-
-    const isUnplanned = inferredProjectId === UNPLANNED_PROJECT_ID;
-    if (isUnplanned && !unplannedReason) {
-      return;
-    }
-
-    // Validate custom reason if "Other" is selected
-    const isOtherSelected = unplannedReason === 'Other';
-    if (isUnplanned && isOtherSelected && !customReason.trim()) {
-      return;
-    }
-
-    try {
-      // Use custom reason if "Other" is selected, otherwise use the dropdown value
-      const finalReason = isUnplanned 
-        ? (isOtherSelected ? customReason.trim() : unplannedReason)
-        : undefined;
-
-      // Calculate duration in minutes
-      const hours = parseInt(durationHours) || 0;
-      const minutes = parseInt(durationMinutes) || 0;
-      const totalMinutes = hours * 60 + minutes;
-
-      const newItem = addWorkLogItem({
-        description: newTaskDescription.trim(),
-        projectId: isUnplanned ? null : inferredProjectId,
-        unplannedReason: finalReason,
-        mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
-        duration: totalMinutes > 0 ? totalMinutes : undefined,
-      });
-
-      setWorkItems(prev => [...prev, newItem]);
-
-      const dayPlanIdValue = await ensureDayPlanId();
-      if (dayPlanIdValue) {
-        const projectSource = newItem.projectId
-          ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
-          : null;
-
-        await upsertWorkLogItem({
-          dayPlanId: dayPlanIdValue,
-          item: {
-            id: newItem.id,
-            description: newItem.description,
-            timestamp: newItem.timestamp,
-            projectId: newItem.projectId,
-            projectSource,
-            unplannedReason: newItem.unplannedReason,
-            mentionedIssues: newItem.mentionedIssues,
-            durationMinutes: newItem.duration ?? null,
-          },
-        });
-      }
-      
-      // Reset form
-      setNewTaskDescription('');
-      setSelectedProjectId('');
-      setUnplannedReason('');
-      setCustomReason('');
-      setMentionedIssues({});
-      setDurationHours('');
-      setDurationMinutes('');
-      setShowProjectSelector(false);
-      
-      // Focus back on input
-      inputRef.current?.focus();
-    } catch (error) {
-      console.error('Failed to add work log item:', error);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart || 0;
-    
-    setNewTaskDescription(value);
-
-    // Check for @ mention trigger
-    const textBeforeCursor = value.substring(0, cursorPos);
-    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
-    
-    if (lastAtSymbol !== -1) {
-      // Check if there's a space or beginning of string before @
-      const charBeforeAt = lastAtSymbol > 0 ? textBeforeCursor[lastAtSymbol - 1] : ' ';
-      const isValidMention = charBeforeAt === ' ' || lastAtSymbol === 0;
-      
-      if (isValidMention) {
-        const query = textBeforeCursor.substring(lastAtSymbol + 1);
-        // Only show dropdown if there's no space after @ (mention is still being typed)
-        const hasSpaceAfter = query.includes(' ');
-        
-        if (!hasSpaceAfter) {
-          setMentionQuery(query.toLowerCase());
-          setMentionStartPos(lastAtSymbol);
-          setShowMentionDropdown(true);
-          setSelectedMentionIndex(0);
-          return;
-        }
-      }
-    }
-    
-    setShowMentionDropdown(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (showMentionDropdown) {
-      const filteredIssues = getFilteredIssues();
-      
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev => 
-          prev < filteredIssues.length - 1 ? prev + 1 : prev
-        );
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (filteredIssues.length > 0) {
-          selectMention(filteredIssues[selectedMentionIndex]);
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        setShowMentionDropdown(false);
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTask();
-    }
-  };
-
-  const getFilteredIssues = () => {
-    if (!mentionQuery) return linearIssues;
-    
-    return linearIssues.filter(issue => {
-      const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
-      return searchStr.includes(mentionQuery);
-    });
-  };
-
-  const selectMention = (issue: LinearIssue) => {
-    const beforeMention = newTaskDescription.substring(0, mentionStartPos);
-    const afterMention = newTaskDescription.substring(mentionStartPos + mentionQuery.length + 1);
-    const newText = `${beforeMention}@${issue.identifier} ${afterMention}`;
-    
-    setNewTaskDescription(newText);
-    setShowMentionDropdown(false);
-    setMentionQuery('');
-    
-    // Store the issue URL for linking later
-    setMentionedIssues(prev => ({
-      ...prev,
-      [issue.identifier]: issue.url
-    }));
-    
-    // Auto-select project: try issue's project first, otherwise select first focused project
-    if (issue.project?.name) {
-      const project = focusedProjects.find(
-        p => p.name.toLowerCase() === issue.project?.name.toLowerCase()
-      );
-      if (project) {
-        setSelectedProjectId(project.id);
-      }
-    } else if (focusedProjects.length > 0 && !selectedProjectId) {
-      // Auto-select first focused project if no project is selected yet
-      setSelectedProjectId(focusedProjects[0].id);
-    }
-    
-    // Focus back on input
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
   };
 
   const handleDelete = async (id: string) => {
@@ -470,13 +299,6 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     return <>{parts}</>;
   };
 
-  const isUnplannedSelected = selectedProjectId === UNPLANNED_PROJECT_ID;
-  const isOtherSelected = unplannedReason === 'Other';
-  const canSubmitTask = Boolean(
-    selectedProjectId &&
-      (!isUnplannedSelected || (unplannedReason && (!isOtherSelected || customReason.trim())))
-  );
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -564,207 +386,426 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
       </div>
 
       {/* Record New Work Item Input */}
-      {!showProjectSelector && (
-        <div className="relative">
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-[#444] bg-[#1a1a1a] hover:border-purple-500/50 transition-colors">
-            <div className="flex-shrink-0">
-              <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
-            </div>
-            
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTaskDescription}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Record a new work item... (type @ to mention issues)"
-              className="flex-1 bg-transparent border-none text-sm text-white placeholder-zinc-500 focus:outline-none"
-            />
-          </div>
-
-          {/* @ Mention Dropdown */}
-          {showMentionDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 p-2 rounded-lg border border-purple-500 bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
-              {isLoadingIssues ? (
-                <div className="py-4 text-center text-sm text-zinc-500">
-                  Loading issues...
-                </div>
-              ) : getFilteredIssues().length === 0 ? (
-                <div className="py-4 text-center text-sm text-zinc-500">
-                  {linearIssues.length === 0 
-                    ? 'No Linear issues found for focused projects'
-                    : `No issues matching "${mentionQuery}"`
-                  }
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {getFilteredIssues().map((issue, index) => {
-                    const stateName = issue.state?.name?.toLowerCase() || '';
-                    const isInProgress = stateName.includes('progress') || stateName === 'in progress';
-                    const isSelected = index === selectedMentionIndex;
-                    
-                    return (
-                      <button
-                        key={issue.id}
-                        onClick={() => selectMention(issue)}
-                        className={`w-full text-left p-2 rounded-md transition-colors ${
-                          isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
-                            {issue.identifier}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white line-clamp-2">
-                              {issue.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {issue.state && (
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isInProgress 
-                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                                    : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
-                                }`}>
-                                  {issue.state.name}
-                                </span>
-                              )}
-                              {issue.project && (
-                                <span className="text-xs text-zinc-500">
-                                  {issue.project.name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              
-              {!isLoadingIssues && getFilteredIssues().length > 0 && (
-                <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
-                  Use ↑↓ to navigate, Enter to select, Esc to close
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {showProjectSelector && (
-        <div className="rounded-lg border border-[#333] bg-[#1a1a1a] p-4">
-          <div className="text-sm text-zinc-400">Select a project for this work item</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {focusedProjects.map(project => {
-              const isSelected = selectedProjectId === project.id;
-              return (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => setSelectedProjectId(project.id)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    isSelected
-                      ? 'border-purple-500 text-purple-300 bg-purple-500/10'
-                      : 'border-[#333] text-zinc-300 hover:border-purple-500/40'
-                  }`}
-                >
-                  {project.icon && <span className="mr-1">{project.icon}</span>}
-                  {project.name}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setSelectedProjectId(UNPLANNED_PROJECT_ID)}
-              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                isUnplannedSelected
-                  ? 'border-amber-400 text-amber-300 bg-amber-500/10'
-                  : 'border-[#333] text-zinc-300 hover:border-amber-500/40'
-              }`}
-            >
-              Unplanned
-            </button>
-          </div>
-
-          {isUnplannedSelected && (
-            <div className="mt-3 space-y-2">
-              <label className="block text-xs text-zinc-400" htmlFor="unplanned-reason">
-                Reason
-              </label>
-              <select
-                id="unplanned-reason"
-                value={unplannedReason}
-                onChange={event => setUnplannedReason(event.target.value as UnplannedReason)}
-                className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-              >
-                <option value="">Select reason</option>
-                {UNPLANNED_REASONS.map(reason => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-              {isOtherSelected && (
-                <input
-                  type="text"
-                  value={customReason}
-                  onChange={event => setCustomReason(event.target.value)}
-                  placeholder="Custom reason"
-                  className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                />
-              )}
-            </div>
-          )}
-
-          <div className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-            <span>Duration</span>
-            <input
-              type="number"
-              min="0"
-              value={durationHours}
-              onChange={event => setDurationHours(event.target.value)}
-              className="w-16 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-              placeholder="0"
-            />
-            <span>h</span>
-            <input
-              type="number"
-              min="0"
-              value={durationMinutes}
-              onChange={event => setDurationMinutes(event.target.value)}
-              className="w-16 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-              placeholder="0"
-            />
-            <span>m</span>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowProjectSelector(false);
-                setSelectedProjectId('');
-                setUnplannedReason('');
-                setCustomReason('');
-              }}
-              className="px-3 py-1.5 rounded-md border border-[#333] text-xs text-zinc-300 hover:border-zinc-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleAddTask}
-              disabled={!canSubmitTask}
-              className="px-3 py-1.5 rounded-md border border-purple-500 text-xs text-white hover:bg-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Log work
-            </button>
-          </div>
-        </div>
-      )}
-
+      <RecordUnitOfWork linearIssues={linearIssues} focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
     </div>
   );
 }
+
+function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { linearIssues: LinearIssue[], focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const [lockedWidth, setLockedWidth] = useState<number | null>(null);
+
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartPos, setMentionStartPos] = useState(0);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showUOWWithoutProjectForm, setShowUOWWithoutProjectForm] = useState(false);
+  const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | null>(null);
+
+
+  const handleFocus = () => {
+    if (ref.current) {
+      setLockedWidth(ref.current.getBoundingClientRect().width);
+    }
+    setIsFocused(true);
+  };
+
+  const handleAddTask = async () => {
+    if (!newTaskDescription.trim()) return;
+
+    const inferredProjectId =
+      selectedProjectId || (focusedProjects.length === 1 ? focusedProjects[0].id : '');
+    
+    // If no project selected, show selector
+    if (!inferredProjectId) {
+      setShowUOWWithoutProjectForm(true);
+      return;
+    }
+
+    // Validate unplanned reason if needed
+    if (!selectedProjectId && inferredProjectId) {
+      setSelectedProjectId(inferredProjectId);
+    }
+
+    const isUnplanned = inferredProjectId === UNPLANNED_PROJECT_ID;
+    if (isUnplanned && !unplannedReason) {
+      return;
+    }
+
+    // Validate custom reason if "Other" is selected
+    // const isOtherSelected = unplannedReason === 'Other';
+    // if (isUnplanned && isOtherSelected && !customReason.trim()) {
+    //   return;
+    // }
+
+    try {
+      // Use custom reason if "Other" is selected, otherwise use the dropdown value
+      // const finalReason = isUnplanned 
+      //   ? (isOtherSelected ? customReason.trim() : unplannedReason)
+      //   : undefined;
+
+      // Calculate duration in minutes
+      // const hours = parseInt(durationHours) || 0;
+      // const minutes = parseInt(durationMinutes) || 0;
+      // const totalMinutes = hours * 60 + minutes;
+
+      const newItem = addWorkLogItem({
+        description: newTaskDescription.trim(),
+        projectId: isUnplanned ? null : inferredProjectId,
+        unplannedReason: unplannedReason ? unplannedReason : undefined, // : finalReason,
+        mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
+        duration: undefined, // totalMinutes > 0 ? totalMinutes : undefined,
+      });
+
+      onWorkLogAdded(newItem);
+      
+      // Reset form
+      setNewTaskDescription('');
+      setSelectedProjectId('');
+      setMentionedIssues({});
+      // setDurationHours('');
+      // setDurationMinutes('');
+      setShowUOWWithoutProjectForm(false);
+
+      
+      // What to do next?
+      // inputRef.current?.focus(); or just setIsFocused(false);
+    } catch (error) {
+      console.error('Failed to add work log item:', error);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart || 0;
+      
+    setNewTaskDescription(value);
+    
+      // Check for @ mention trigger
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1) {
+      // Check if there's a space or beginning of string before @
+      const charBeforeAt = lastAtSymbol > 0 ? textBeforeCursor[lastAtSymbol - 1] : ' ';
+      const isValidMention = charBeforeAt === ' ' || lastAtSymbol === 0;
+      
+      if (isValidMention) {
+        const query = textBeforeCursor.substring(lastAtSymbol + 1);
+        // Only show dropdown if there's no space after @ (mention is still being typed)
+        const hasSpaceAfter = query.includes(' ');
+        
+        if (!hasSpaceAfter) {
+          setMentionQuery(query.toLowerCase());
+          setMentionStartPos(lastAtSymbol);
+          setShowMentionDropdown(true);
+          setSelectedMentionIndex(0);
+          return;
+        }
+      }
+    }
+    
+    setShowMentionDropdown(false);
+  };
+
+  const selectMention = (issue: LinearIssue) => {
+    const beforeMention = newTaskDescription.substring(0, mentionStartPos);
+    const afterMention = newTaskDescription.substring(mentionStartPos + mentionQuery.length + 1);
+    const newText = `${beforeMention}@${issue.identifier} ${afterMention}`;
+    
+    setNewTaskDescription(newText);
+    setShowMentionDropdown(false);
+    setMentionQuery('');
+    
+    // Store the issue URL for linking later
+    setMentionedIssues(prev => ({
+      ...prev,
+      [issue.identifier]: issue.url
+    }));
+    
+    // Auto-select project: try issue's project first, otherwise select first focused project
+    if (issue.project?.name) {
+      const project = focusedProjects.find(
+        p => p.name.toLowerCase() === issue.project?.name.toLowerCase()
+      );
+      if (project) {
+        setSelectedProjectId(project.id);
+      }
+    } else if (focusedProjects.length > 0 && !selectedProjectId) {
+      // Auto-select first focused project if no project is selected yet
+      setSelectedProjectId(focusedProjects[0].id);
+    }
+    
+    // TODO: Focus back on input: or just close?
+    // setTimeout(() => {
+    //   inputRef.current?.focus();
+    // }, 0);
+  };
+
+  function getFilteredIssues() {
+    return linearIssues.filter(issue => {
+      const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
+      return searchStr.includes(mentionQuery);
+    });
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionDropdown) {
+      const filteredIssues = getFilteredIssues();
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev < filteredIssues.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredIssues.length > 0) {
+          selectMention(filteredIssues[selectedMentionIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionDropdown(false);
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTask();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsFocused(false);
+      setNewTaskDescription('');
+      setMentionedIssues({});
+      setShowMentionDropdown(false);
+      setSelectedMentionIndex(0);
+      setMentionQuery('');
+      setMentionStartPos(0);
+      setShowUOWWithoutProjectForm(false);
+      setUnplannedReason(null);
+      setSelectedProjectId(null);
+      if (inputRef.current) {
+        inputRef.current.blur();
+      }
+    }
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      layout
+      initial={false}
+
+      style={{
+        width: isFocused && lockedWidth ? lockedWidth : undefined,
+      }}
+
+      className={`
+        flex items-center gap-3 p-3 rounded-lg
+        border border-dashed border-[#444] bg-[#1a1a1a]
+        transition-colors
+
+        ${isFocused
+          ? "fixed top-[22%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 border-purple-500/50"
+          : "relative w-full"
+        }
+
+        ${showUOWWithoutProjectForm
+          ? "border-purple-500/50"
+          : "border-[#333]"
+        }
+      `}
+    >
+      <div className="flex-shrink-0">
+        <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
+      </div>
+
+      <input
+        ref={inputRef}
+        value={newTaskDescription}
+        onFocus={handleFocus}
+        onBlur={() => {
+          if (!showUOWWithoutProjectForm && !showMentionDropdown) {
+            setIsFocused(false);
+          }
+        }}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        placeholder="Record a new work item... (type @ to mention issues)"
+        className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 outline-none"
+      />
+
+      {/* @ Mention Dropdown */}
+      {showMentionDropdown && (
+          // isLoadingIssues ? (
+          //   <div className="py-4 text-center text-sm text-zinc-500">
+          //     Loading issues...
+          //   </div>
+          // ) : (
+        <div className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10">
+          <MentionDropdown selectedMentionIndex={selectedMentionIndex} onSelectMention={setSelectedMentionIndex} linearIssues={getFilteredIssues()} mentionQuery={mentionQuery} />
+        </div>
+      )}
+
+      {/* Add UOW without Project */}
+      {/* {showUOWWithoutProjectForm && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10"
+        >
+          <UOWWithoutProjectForm focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
+        </div>
+      )} */}
+    </motion.div>
+  );
+}
+
+function MentionDropdown({ selectedMentionIndex, onSelectMention, linearIssues, mentionQuery }: { selectedMentionIndex: number, onSelectMention: (index: number) => void, linearIssues: LinearIssue[], mentionQuery: string }) {
+
+  if (linearIssues.length === 0) {
+    return <div className="py-4 text-center text-sm text-zinc-500">
+      {linearIssues.length === 0 
+        ? 'No Linear issues found for today\'s projects'
+        : `No issues matching "${mentionQuery}"`
+      }
+    </div>
+  }
+
+  return (
+    <div>
+      <div className="space-y-1">
+        {linearIssues.map((issue, index) => {
+          const stateName = issue.state?.name?.toLowerCase() || '';
+          const isInProgress = stateName.includes('progress') || stateName === 'in progress';
+          const isSelected = index === selectedMentionIndex;
+          
+          return (
+            <button
+              key={issue.id}
+              onClick={() => onSelectMention(index)}
+              className={`w-full text-left p-2 rounded-md transition-colors ${
+                isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-mono text-purple-400 flex-shrink-0 mt-0.5">
+                  {issue.identifier}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white line-clamp-2">
+                    {issue.title}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {issue.state && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        isInProgress 
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                          : 'bg-zinc-500/10 text-zinc-500 border border-zinc-500/20'
+                      }`}>
+                        {issue.state.name}
+                      </span>
+                    )}
+                    {issue.project && (
+                      <span className="text-xs text-zinc-500">
+                        {issue.project.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    
+      <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
+        Use ↑↓ to navigate, Enter to select, Esc to close
+      </div>
+    </div>
+  );
+}
+
+// function UOWWithoutProjectForm({ focusedProjects, onWorkLogAdded }: { focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void }) {
+//   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+//   const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | ''>('');
+//   const [customReason, setCustomReason] = useState('');
+
+//   const isUnplannedSelected = selectedProjectId === UNPLANNED_PROJECT_ID;
+//   const isOtherSelected = unplannedReason === 'Other';
+//   const canSubmitTask = Boolean(
+//     selectedProjectId &&
+//       (!isUnplannedSelected || (unplannedReason && (!isOtherSelected || customReason.trim())))
+//   );
+
+//   return (
+//       <div className="rounded-lg border border-[#333] bg-[#1a1a1a] p-4">
+//         <div className="text-sm text-zinc-400">Select a project for this work item</div>
+//         <div className="mt-3 flex flex-wrap gap-2">
+//           {focusedProjects.map(project => {
+//             const isSelected = selectedProjectId === project.id;
+//             return (
+//               <button
+//                 key={project.id}
+//                 type="button"
+//                 onClick={() => setSelectedProjectId(project.id)}
+//                 className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+//                   isSelected
+//                     ? 'border-purple-500 text-purple-300 bg-purple-500/10'
+//                     : 'border-[#333] text-zinc-300 hover:border-purple-500/40'
+//                 }`}
+//               >
+//                 {project.icon && <span className="mr-1">{project.icon}</span>}
+//                 {project.name}
+//               </button>
+//             );
+//           })}
+//           <button
+//             type="button"
+//             onClick={() => setSelectedProjectId(UNPLANNED_PROJECT_ID)}
+//             className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+//               isUnplannedSelected
+//                 ? 'border-amber-400 text-amber-300 bg-amber-500/10'
+//                 : 'border-[#333] text-zinc-300 hover:border-amber-500/40'
+//             }`}
+//           >
+//             Unplanned
+//           </button>
+//         </div>
+
+//         {isUnplannedSelected && (
+//           <div className="mt-3 space-y-2">
+//             <label className="block text-xs text-zinc-400" htmlFor="unplanned-reason">
+//               Reason
+//             </label>
+//             <select
+//               id="unplanned-reason"
+//               value={unplannedReason}
+//               onChange={event => setUnplannedReason(event.target.value as UnplannedReason)}
+//               className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+//             >
+//               <option value="">Select reason</option>
+//               {UNPLANNED_REASONS.map(reason => (
+//                 <option key={reason} value={reason}>
+//                   {reason}
+//                 </option>
+//               ))}
+//             </select>
+//             {isOtherSelected && (
+//               <input
+//                 type="text"
+//                 value={customReason}
+//                 onChange={event => setCustomReason(event.target.value)}
+//                 placeholder="Custom reason"
+//                 className="w-full rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+//               />
+//             )}
+//           </div>
+//         )}
+//       </div>
+//   );
+// }
