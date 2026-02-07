@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
-import { TrashIcon, CheckIcon } from '@radix-ui/react-icons';
+import { motion, AnimatePresence } from 'motion/react';
+import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
@@ -53,6 +53,11 @@ const UNPLANNED_PROJECT_ID = '__unplanned__';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+enum Step {
+  ProvideDescription = 'provideDescription',
+  Accept = 'accept',
 }
 
 export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
@@ -425,6 +430,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   const [showUOWWithoutProjectForm, setShowUOWWithoutProjectForm] = useState(false);
   const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | null>(null);
 
+  const [step, setStep] = useState<Step>(Step.ProvideDescription);
 
   const handleFocus = () => {
     if (ref.current) {
@@ -434,13 +440,16 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   };
 
   const handleAddTask = async () => {
+    console.log('handleAddTask', newTaskDescription);
     if (!newTaskDescription.trim()) return;
+    console.log('handleAddTask 2', newTaskDescription);
 
     const inferredProjectId =
       selectedProjectId || (focusedProjects.length === 1 ? focusedProjects[0].id : '');
     
     // If no project selected, show selector
     if (!inferredProjectId) {
+      console.log('handleAddTask 3', inferredProjectId);
       setShowUOWWithoutProjectForm(true);
       return;
     }
@@ -490,9 +499,10 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       // setDurationMinutes('');
       setShowUOWWithoutProjectForm(false);
 
-      
       // What to do next?
-      // inputRef.current?.focus(); or just setIsFocused(false);
+      // inputRef.current?.focus(); or just
+      setStep(Step.ProvideDescription);
+      setIsFocused(false);
     } catch (error) {
       console.error('Failed to add work log item:', error);
     }
@@ -596,6 +606,10 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     return [...issues, ...projects];
   }
 
+  function descriptionProvided() {
+    setStep(Step.Accept);
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showMentionDropdown) {
       const filteredMentions = getFilteredMentions();
@@ -619,7 +633,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      handleAddTask();
+      descriptionProvided();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setIsFocused(false);
@@ -641,22 +655,24 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   return (
     <motion.div
       ref={ref}
-      layout
+      layout="position"
       transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
       initial={false}
 
       style={{
-        width: isFocused && lockedWidth ? lockedWidth : undefined,
+        // width: isFocused && lockedWidth ? lockedWidth : undefined,
       }}
 
       className={`
-        flex items-center gap-3 p-3 rounded-lg
+        flex flex-col items-center gap-3 py-3
         border border-[#444] bg-[#1a1a1a]
+        rounded-lg
         transition-colors
+        
 
         ${isFocused
-          ? "fixed top-[22%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 border-purple-500/50"
-          : "relative w-full"
+          ? "fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]"
+          : "w-full"
         }
 
         ${showUOWWithoutProjectForm
@@ -665,42 +681,107 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
         }
       `}
     >
-      <div className="flex-shrink-0">
+      {/* <div className="flex-shrink-0">
         <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
+      </div> */}
+
+      {/* Main Section */}
+      <div className={`px-2 w-full h-full ${step === Step.Accept ? '' : 'grid place-content-center place-items-center' }`}>
+        {/* <div className="absolute right-0 top-0 text-sm">
+          {step}
+        </div> */}
+
+        {step === Step.ProvideDescription && (
+          <input
+            ref={inputRef}
+            id="work-log-input"
+            autoComplete='off'
+            value={newTaskDescription}
+            onFocus={handleFocus}
+            onBlur={() => {
+              if (!showUOWWithoutProjectForm && !showMentionDropdown) {
+                // setIsFocused(false);
+              }
+            }}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Record a new work item... (type @ to mention issues or projects)"
+            style={{
+              gridArea: '1 / 1',
+            }}
+            className="flex-1 w-full h-full bg-transparent text-white placeholder-zinc-500 outline-none z-10"
+          />
+        )}
+
+        {/* { step === Step.Accept && ( */}
+        <div 
+          style={{
+            gridArea: '1 / 1',
+          }}
+          className={
+            `w-full rounded-md flex ${step === Step.Accept ? 'justify-between items-start' : 'opacity-0' }`
+          }
+        >
+          <motion.span
+            layout="position"
+            transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
+            initial={false}
+            className={
+              `w-full rounded-md ${step === Step.Accept ? '' : 'opacity-0' }`
+            }
+          >
+            <span
+              className="bg-[#252525] px-1.5 py-0.5 rounded-sm"
+            >
+              {newTaskDescription}
+            </span>
+          </motion.span>
+        {/* )} */}
+
+        {step === Step.Accept && (
+          <motion.div className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+          >
+            <button
+              className='cursor-pointer text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
+              onClick={handleAddTask}
+              >
+                Just add
+            </button>
+            <span className="text-xs text-zinc-500 text-center"> or </span>
+            <button
+              className='cursor-pointer flex gap-2 rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
+              onClick={handleAddTask}
+              >
+                <VercelLogoIcon className="w-4 h-4 rotate-90" /> Start
+            </button>
+          </motion.div>
+        )}
+           </div>
       </div>
 
-      <input
-        ref={inputRef}
-        value={newTaskDescription}
-        onFocus={handleFocus}
-        onBlur={() => {
-          if (!showUOWWithoutProjectForm && !showMentionDropdown) {
-            setIsFocused(false);
-          }
-        }}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Record a new work item... (type @ to mention issues or projects)"
-        className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 outline-none"
-      />
-
-      {/* @ Mention Dropdown */}
-      {showMentionDropdown && (
-          // isLoadingIssues ? (
-          //   <div className="py-4 text-center text-sm text-zinc-500">
-          //     Loading issues...
-          //   </div>
-          // ) : (
-        <div className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg z-10">
-          <MentionDropdown
-            selectedMentionIndex={selectedMentionIndex}
-            onSelectMention={setSelectedMentionIndex}
-            onPickMention={selectMention}
-            mentionOptions={getFilteredMentions()}
-            mentionQuery={mentionQuery}
-          />
-        </div>
+      <AnimatePresence>
+        {/* @ Mention Dropdown */}
+        {showMentionDropdown && (
+            // isLoadingIssues ? (
+            //   <div className="py-4 text-center text-sm text-zinc-500">
+            //     Loading issues...
+            //   </div>
+            // ) : (
+          <div className="w-full mt-1 py-2 px-2 border-t-1 border-[#333] bg-[#1a1a1a] shadow-lg">
+            <MentionDropdown
+              selectedMentionIndex={selectedMentionIndex}
+              onSelectMention={setSelectedMentionIndex}
+              onPickMention={selectMention}
+              mentionOptions={getFilteredMentions()}
+              mentionQuery={mentionQuery}
+            />
+          </div>
       )}
+      </AnimatePresence>
 
       {/* Add UOW without Project */}
       {/* {showUOWWithoutProjectForm && (
@@ -737,7 +818,13 @@ function MentionDropdown({
   }
 
   return (
-    <div className="">
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="origin-top"
+    >
       <div className="space-y-1 max-h-64 overflow-y-auto">
         {mentionOptions.map((mention, index) => {
           const issue = mention.issue;
@@ -809,7 +896,7 @@ function MentionDropdown({
       <div className="mt-2 pt-2 border-t border-[#333] text-xs text-zinc-500 text-center">
         Use ↑↓ to navigate, Enter to select, Esc to close
       </div>
-    </div>
+    </motion.div>
   );
 }
 
