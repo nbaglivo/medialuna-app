@@ -651,7 +651,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
 
       className={`
         flex items-center gap-3 p-3 rounded-lg
-        border border-dashed border-[#444] bg-[#1a1a1a]
+        border border-[#444] bg-[#1a1a1a]
         transition-colors
 
         ${isFocused
