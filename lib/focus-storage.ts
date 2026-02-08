@@ -13,7 +13,7 @@ export type WorkLogItem = {
   timestamp: number;
   projectId: string | null; // null for unplanned work
   unplannedReason?: string;
-  mentionedIssues?: Record<string, string>; // Map of issue identifier to URL (e.g., {"NIC-123": "https://linear.app/..."})
+  mentionedIssues?: Record<string, string>; // Map of issue identifier or project name to URL
   duration?: number; // Duration in minutes
 };
 
