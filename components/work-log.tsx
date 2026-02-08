@@ -57,18 +57,13 @@ function escapeRegExp(value: string): string {
 
 enum Step {
   ProvideDescription = 'provideDescription',
+  ProvideProject = 'provideProject',
   Accept = 'accept',
 }
 
 export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
-  const [showProjectSelector, setShowProjectSelector] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | ''>('');
-  const [customReason, setCustomReason] = useState('');
   const [isLoadingIssues, setIsLoadingIssues] = useState(false);
-  const [durationHours, setDurationHours] = useState<string>('');
-  const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   
@@ -322,17 +317,9 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      {/* Header */}
-      <div>
-        {/* <h2 className="text-xl font-semibold text-white">Work Log</h2> */}
-        <p className="text-sm text-zinc-400 mt-1">
-          Log your work here
-        </p>
-      </div>
-
       {/* Work Items List */}
-      <div className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
-        {workItems.length === 0 && !showProjectSelector && (
+      <div className="border border-zinc-500/10 p-6 rounded-lg flex-1 min-h-0 space-y-2 overflow-y-auto ">
+        {workItems.length === 0 && (
           <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
             <p className="text-zinc-500 text-sm">No tasks logged yet</p>
             <p className="text-zinc-600 text-xs mt-1">Start logging your work below</p>
@@ -427,8 +414,6 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [showUOWWithoutProjectForm, setShowUOWWithoutProjectForm] = useState(false);
-  const [unplannedReason, setUnplannedReason] = useState<UnplannedReason | null>(null);
 
   const [step, setStep] = useState<Step>(Step.ProvideDescription);
 
@@ -440,53 +425,20 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   };
 
   const handleAddTask = async () => {
-    console.log('handleAddTask', newTaskDescription);
-    if (!newTaskDescription.trim()) return;
-    console.log('handleAddTask 2', newTaskDescription);
+    const description = newTaskDescription.trim();
+    if (!description) return;
 
-    const inferredProjectId =
-      selectedProjectId || (focusedProjects.length === 1 ? focusedProjects[0].id : '');
-    
-    // If no project selected, show selector
-    if (!inferredProjectId) {
-      console.log('handleAddTask 3', inferredProjectId);
-      setShowUOWWithoutProjectForm(true);
-      return;
-    }
-
-    // Validate unplanned reason if needed
-    if (!selectedProjectId && inferredProjectId) {
-      setSelectedProjectId(inferredProjectId);
-    }
-
-    const isUnplanned = inferredProjectId === UNPLANNED_PROJECT_ID;
-    if (isUnplanned && !unplannedReason) {
-      return;
-    }
-
-    // Validate custom reason if "Other" is selected
-    // const isOtherSelected = unplannedReason === 'Other';
-    // if (isUnplanned && isOtherSelected && !customReason.trim()) {
-    //   return;
-    // }
+    // TODO: add unplanned reason 
+    // const unplannedReason = selectedProjectId === UNPLANNED_PROJECT_ID ? unplannedReason : undefined;
+    const unplannedReason = undefined;
 
     try {
-      // Use custom reason if "Other" is selected, otherwise use the dropdown value
-      // const finalReason = isUnplanned 
-      //   ? (isOtherSelected ? customReason.trim() : unplannedReason)
-      //   : undefined;
-
-      // Calculate duration in minutes
-      // const hours = parseInt(durationHours) || 0;
-      // const minutes = parseInt(durationMinutes) || 0;
-      // const totalMinutes = hours * 60 + minutes;
-
       const newItem = addWorkLogItem({
-        description: newTaskDescription.trim(),
-        projectId: isUnplanned ? null : inferredProjectId,
-        unplannedReason: unplannedReason ? unplannedReason : undefined, // : finalReason,
+        description,
+        projectId: selectedProjectId,
+        unplannedReason,
         mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
-        duration: undefined, // totalMinutes > 0 ? totalMinutes : undefined,
+        duration: undefined, // TODO: add duration (in minutes)
       });
 
       onWorkLogAdded(newItem);
@@ -495,14 +447,9 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       setNewTaskDescription('');
       setSelectedProjectId('');
       setMentionedIssues({});
-      // setDurationHours('');
-      // setDurationMinutes('');
-      setShowUOWWithoutProjectForm(false);
 
-      // What to do next?
-      // inputRef.current?.focus(); or just
-      setStep(Step.ProvideDescription);
       setIsFocused(false);
+      setStep(Step.ProvideDescription);
     } catch (error) {
       console.error('Failed to add work log item:', error);
     }
@@ -573,11 +520,6 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
         setSelectedProjectId(focusedProjects[0].id);
       }
     }
-    
-    // TODO: Focus back on input: or just close?
-    // setTimeout(() => {
-    //   inputRef.current?.focus();
-    // }, 0);
   };
 
   function getFilteredMentions(): MentionOption[] {
@@ -607,6 +549,18 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   }
 
   function descriptionProvided() {
+    
+    // If no project selected, show selector
+    if (!selectedProjectId) {
+      setStep(Step.ProvideProject);
+      return;
+    }
+
+    setStep(Step.Accept);
+  }
+
+  function manuallySelectProject(projectId: string) {
+    setSelectedProjectId(projectId);
     setStep(Step.Accept);
   }
 
@@ -643,8 +597,6 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       setSelectedMentionIndex(0);
       setMentionQuery('');
       setMentionStartPos(0);
-      setShowUOWWithoutProjectForm(false);
-      setUnplannedReason(null);
       setSelectedProjectId(null);
       if (inputRef.current) {
         inputRef.current.blur();
@@ -656,11 +608,11 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     <motion.div
       ref={ref}
       layout="position"
-      transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
+      transition={{ layout: { duration: 0.4, ease: 'easeOut', delay: step === Step.Accept ? 0.3 : 0 } }}
       initial={false}
 
       style={{
-        // width: isFocused && lockedWidth ? lockedWidth : undefined,
+        width: isFocused && lockedWidth ? lockedWidth : undefined,
       }}
 
       className={`
@@ -669,15 +621,9 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
         rounded-lg
         transition-colors
         
-
         ${isFocused
           ? "fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]"
           : "w-full"
-        }
-
-        ${showUOWWithoutProjectForm
-          ? "border-purple-500/50"
-          : "border-[#333]"
         }
       `}
     >
@@ -686,7 +632,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       </div> */}
 
       {/* Main Section */}
-      <div className={`px-2 w-full h-full ${step === Step.Accept ? '' : 'grid place-content-center place-items-center' }`}>
+      <div className={`px-4 w-full h-full ${step === Step.Accept ? '' : 'grid place-items-center' }`}>
         {/* <div className="absolute right-0 top-0 text-sm">
           {step}
         </div> */}
@@ -699,13 +645,13 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
             value={newTaskDescription}
             onFocus={handleFocus}
             onBlur={() => {
-              if (!showUOWWithoutProjectForm && !showMentionDropdown) {
+              if (!showMentionDropdown && step === Step.ProvideDescription) {
                 // setIsFocused(false);
               }
             }}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Record a new work item... (type @ to mention issues or projects)"
+            placeholder="Record a new work item..."
             style={{
               gridArea: '1 / 1',
             }}
@@ -713,13 +659,12 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
           />
         )}
 
-        {/* { step === Step.Accept && ( */}
         <div 
           style={{
             gridArea: '1 / 1',
           }}
           className={
-            `w-full rounded-md flex ${step === Step.Accept ? 'justify-between items-start' : 'opacity-0' }`
+            `w-full rounded-md flex flex-col gap-4 ${step !== Step.ProvideDescription ? 'justify-between items-center' : 'opacity-0' }`
           }
         >
           <motion.span
@@ -727,7 +672,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
             transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
             initial={false}
             className={
-              `w-full rounded-md ${step === Step.Accept ? '' : 'opacity-0' }`
+              ` rounded-md ${step !== Step.ProvideDescription ? 'translate-x-0' : 'opacity-0' }`
             }
           >
             <span
@@ -736,14 +681,13 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
               {newTaskDescription}
             </span>
           </motion.span>
-        {/* )} */}
 
         {step === Step.Accept && (
           <motion.div className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
             <button
               className='cursor-pointer text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
@@ -760,7 +704,13 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
             </button>
           </motion.div>
         )}
-           </div>
+
+        <AnimatePresence mode="wait">
+          {step === Step.ProvideProject && (
+            <ProjectSelector projects={focusedProjects} onProjectSelected={manuallySelectProject} />
+          )}
+        </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -780,17 +730,51 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
               mentionQuery={mentionQuery}
             />
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {/* @ Mention Dropdown */}
+        {!showMentionDropdown && isFocused && step === Step.ProvideDescription && (
+          <div className="w-full mt-1 py-2 px-2 border-t-1 border-[#333] bg-[#1a1a1a] shadow-lg">
+            <div className="text-sm text-zinc-500 flex items-center gap-1">
+              <span className="font-mono text-[10px] bg-zinc-500/10 border border-zinc-500 px-2 py-0.5 rounded-sm">Tip</span> type <span className="font-mono text-purple-500 px-1 py-0.5 rounded-sm">@</span> to mention issues or projects
+            </div>
+          </div>
       )}
       </AnimatePresence>
 
-      {/* Add UOW without Project */}
-      {/* {showUOWWithoutProjectForm && (
-        <div
-          className="absolute top-full left-0 right-0 mt-1 p-2 border border-[#333] bg-[#1a1a1a] shadow-lg max-h-64 overflow-y-auto z-10"
+    </motion.div>
+  );
+}
+
+function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedProject[], onProjectSelected: (projectId: string) => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+      className="mt-4 flex flex-col gap-3"
+    >
+      <h2 className="text-sm text-zinc-500">Was this work done in a specific project?</h2>
+      <div className="flex flex-wrap gap-2">
+        {projects.map(project => (
+          <button
+            key={project.id}
+            className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-purple-500/30"
+            onClick={() => onProjectSelected(project.id)}
+          >
+            {project.name}
+          </button>
+        ))}
+        <button
+          className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-red-700/30"
+          onClick={() => onProjectSelected(UNPLANNED_PROJECT_ID)}
         >
-          <UOWWithoutProjectForm focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
-        </div>
-      )} */}
+          Unplanned work
+        </button>
+      </div>
     </motion.div>
   );
 }
