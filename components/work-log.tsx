@@ -255,7 +255,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
               const translateY = `calc(${inverseIndex * 100}% + ${inverseIndex * 10}px)`;
               return (
               <div
-                key={index}
+                key={item.id}
                 style={{ transform: `translateY(${translateY})` }}
                 className={`absolute w-full transition-transform duration-1000 ease-in-out`}
               >
@@ -566,18 +566,20 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
+            <div className="text-xs text-zinc-500 text-center">
+              Want to start right away?
+            </div>
             <button
-              className='cursor-pointer text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
+              className='cursor-pointer flex gap-2 items-center justify-center text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
               onClick={handleAddTask}
               >
-                Just add
+                Yes, start now
             </button>
-            <span className="text-xs text-zinc-500 text-center"> or </span>
             <button
               className='cursor-pointer flex gap-2 rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
               onClick={handleAddTask}
               >
-                <VercelLogoIcon className="w-4 h-4 rotate-90" /> Start
+                Just log it
             </button>
           </motion.div>
         )}
@@ -755,13 +757,22 @@ function UnitOfWorkRecord({ item, project, onDelete }: { item: WorkLogItem, proj
         </div>
       </div>
 
-      <button
-        onClick={() => onDelete(item.id)}
-        className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-        title="Delete task"
-      >
-        <TrashIcon className="size-4" />
-      </button>
+      <div>
+        <button
+          className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors opacity-0 group-hover:opacity-100"
+          title="Start tracking task time"
+        >
+          <PlayIcon />
+        </button>
+
+        <button
+          onClick={() => onDelete(item.id)}
+          className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+          title="Delete task"
+        >
+          <TrashIcon className="size-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -981,3 +992,9 @@ function MentionDropdown({
 //       </div>
 //   );
 // }
+
+function PlayIcon() {
+  return (
+    <VercelLogoIcon className="w-4 h-4 rotate-90" />
+  );
+}
