@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, CheckIcon, CopyIcon } from '@radix-ui/react-icons';
 import {
-  type WorkLogItem,
   type DaySummaryStatistics,
   saveDaySummary,
   clearCurrentDay,
@@ -12,7 +11,7 @@ import {
   setWorkLogItems,
 } from '@/lib/focus-storage';
 import { TaskSources, type TaskSource, type UnifiedProject } from '@/lib/task-source';
-import { getDayPlanProjects, getDayPlanWorkLog, updateDayPlanReflection } from '@/app/actions/day-plan';
+import { getDayPlanProjects, getDayPlanWorkLog, updateDayPlanReflection, type WorkLogItem } from '@/app/actions/day-plan';
 
 export default function DaySummary() {
   const router = useRouter();
