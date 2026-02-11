@@ -145,7 +145,7 @@ export default function DayWorkPageClient() {
             <div className="flex h-full flex-col gap-4 md:flex-row">
 
               {/* Work Log Section */}
-              <div className="flex min-h-0 flex-[1.5] flex-col">
+              <div className="flex min-h-0 flex-[1.5] bg-[#171717] flex-col">
                 <WorkLog
                   focusedProjects={focusedProjects}
                   initialItems={initialWorkLog}
@@ -157,6 +157,12 @@ export default function DayWorkPageClient() {
                 {/* Focused Projects Section */}
                 <FocusedProjects projects={focusedProjects} />
                 <WorkLogSummary workLog={workLog} />
+
+                <div className="flex m-10 justify-center items-center gap-2">
+                  <Link href="/day-summary" className="px-3 py-1 border border-zinc-400 rounded-md hover:bg-[#252525] transition-colors">
+                    Close the Day
+                  </Link>
+                </div>
               </div>
             </div>
           )}

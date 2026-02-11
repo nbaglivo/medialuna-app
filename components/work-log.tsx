@@ -14,6 +14,7 @@ import {
   getDayPlanSession,
   saveDayPlanSession,
   setWorkLogItems,
+  generateFallbackUuid,
 } from '@/lib/focus-storage';
 import {
   startDayPlan,
