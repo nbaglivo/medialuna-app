@@ -1,8 +1,8 @@
-import DayWorkPageClient from '@/components/day-work-page-client';
-import { getWorkLog, WorkLogItem } from '@/lib/focus-storage';
-import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
-import { getDayPlanId, getDayPlanWorkLog } from '../actions/day-plan';
+import { ArrowLeftIcon } from '@radix-ui/react-icons';
+import DayWorkPageClient from '@/components/day-work-page-client';
+import { type WorkLogItem } from '@/app/actions/day-plan';
+import { getDayPlanId, getDayPlanProjectsWithSource, getDayPlanWorkLog } from '../actions/day-plan';
 
 export default async function DayWorkPage() {
   const dayPlanId = await getDayPlanId();
@@ -17,6 +17,8 @@ export default async function DayWorkPage() {
     mentionedIssues: workLogItem.mentionedIssues ?? undefined,
     duration: workLogItem.durationMinutes ?? undefined,
   }));
+
+  const focusedProjects = await getDayPlanProjectsWithSource(dayPlanId);
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#141414]">
@@ -41,7 +43,7 @@ export default async function DayWorkPage() {
           </div>
         </div>
       </div>
-      <DayWorkPageClient workLogItems={workLogItems} />
+      <DayWorkPageClient workLogItems={workLogItems} focusedProjects={focusedProjects} />
     </div>
   )
 }

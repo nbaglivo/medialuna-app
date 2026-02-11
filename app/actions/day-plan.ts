@@ -1,7 +1,9 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { LinearProject, normalizeLinearProject, TaskSource, TaskSources, UnifiedProject } from '@/lib/task-source';
 import { revalidatePath } from 'next/cache';
+import { getLinearData } from './linear';
 
 export type DayPlanProjectInput = {
   projectId: string;
@@ -52,6 +54,33 @@ type StartDayPlanInput = {
   timezone?: string | null;
   projects: DayPlanProjectInput[];
 };
+
+export async function getDayPlanProjectsWithSource(dayPlanId: string): Promise<any> {
+  const dayPlanProjects: DayPlanProjectRecord[] = await getDayPlanProjects(dayPlanId);
+  
+  const projectsFromAllSources: UnifiedProject[] = [];
+
+  // Fetch Linear projects
+  const linearData = await getLinearData();
+
+  const normalizedLinear = linearData.projects.map(normalizeLinearProject);
+  projectsFromAllSources.push(...normalizedLinear);
+
+  // TODO: Add GitHub projects fetch when API is ready
+  // TODO: Add App projects fetch when API is ready
+
+  return dayPlanProjects.map(project => {
+    const match = projectsFromAllSources.find(sourceProject => sourceProject.id === project.projectId);
+    if (match) return match;
+
+    return {
+      id: project.projectId,
+      name: project.projectName ?? 'Unknown Project',
+      url: '',
+      source: (project.projectSource ? project.projectSource as TaskSource : TaskSources.App),
+    };
+  });
+}
 
 export async function getDayPlanId(): Promise<string> {
   const supabase = createServerSupabaseClient();

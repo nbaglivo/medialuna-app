@@ -7,11 +7,6 @@ import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
-  getDayPlanSession,
-  saveDayPlanSession
-} from '@/lib/focus-storage';
-import {
-  startDayPlan,
   syncDayPlanProjects,
   upsertWorkLogItem,
   deleteWorkLogItem,
