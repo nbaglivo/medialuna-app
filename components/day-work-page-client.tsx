@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
-import UnifiedProjectsList from '@/components/unified-projects-list';
+import { ExternalLinkIcon } from '@radix-ui/react-icons';
 import WorkLog from '@/components/work-log';
 import { 
   TaskSources,
@@ -13,16 +12,18 @@ import {
   type LinearProject,
   normalizeLinearProject 
 } from '@/lib/task-source';
-import { getDayPlanSession, WorkLogItem } from '@/lib/focus-storage';
-import { type DayPlanProjectRecord, getDayPlanProjects, getDayPlanWorkLog } from '@/app/actions/day-plan';
+import {
+  type DayPlanProjectRecord,
+  type WorkLogItem,
+  getDayPlanId,
+  getDayPlanProjects
+} from '@/app/actions/day-plan';
 
-export default function DayWorkPageClient() {
+export default function DayWorkPageClient({ workLogItems }: { workLogItems: WorkLogItem[] }) {
   const router = useRouter();
   const [focusedProjects, setFocusedProjects] = useState<UnifiedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [workLog, setWorkLog] = useState<WorkLogItem[] | []>([]);
-  const [initialWorkLog, setInitialWorkLog] = useState<WorkLogItem[] | []>([]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -31,15 +32,15 @@ export default function DayWorkPageClient() {
       setIsLoading(true);
       setError(null);
 
-      const session = getDayPlanSession();
-      if (!session) {
+      const dayPlanId = await getDayPlanId();
+      if (!dayPlanId) {
         router.replace('/');
         return;
       }
 
       let dayPlanProjects: DayPlanProjectRecord[] = [];
       try {
-        dayPlanProjects = await getDayPlanProjects(session.dayPlanId);
+        dayPlanProjects = await getDayPlanProjects(dayPlanId);
       } catch (error) {
         if (!abortController.signal.aborted) {
           console.warn('Error loading day plan projects:', error);
@@ -81,28 +82,8 @@ export default function DayWorkPageClient() {
         };
       });
 
-      let workLogItems: WorkLogItem[] = [];
-      try {
-        const dayPlanWorkLog = await getDayPlanWorkLog(session.dayPlanId);
-        workLogItems = dayPlanWorkLog.map(item => ({
-          id: item.id,
-          description: item.description,
-          timestamp: item.timestamp,
-          projectId: item.projectId,
-          unplannedReason: item.unplannedReason ?? undefined,
-          mentionedIssues: item.mentionedIssues ?? undefined,
-          duration: item.durationMinutes ?? undefined,
-        }));
-      } catch (error) {
-        if (!abortController.signal.aborted) {
-          console.warn('Error loading work log:', error);
-        }
-      }
-
       if (!abortController.signal.aborted) {
         setFocusedProjects(focused);
-        setInitialWorkLog(workLogItems);
-        setWorkLog(workLogItems);
         setIsLoading(false);
       }
     }
@@ -148,15 +129,14 @@ export default function DayWorkPageClient() {
               <div className="flex min-h-0 flex-[1.5] bg-[#171717] flex-col">
                 <WorkLog
                   focusedProjects={focusedProjects}
-                  initialItems={initialWorkLog}
-                  onWorkLogChange={setWorkLog}
+                  workLogItems={workLogItems}
                 />
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col">
                 {/* Focused Projects Section */}
                 <FocusedProjects projects={focusedProjects} />
-                <WorkLogSummary workLog={workLog} />
+                <WorkLogSummary workLog={workLogItems} />
 
                 <div className="flex m-10 justify-center items-center gap-2">
                   <Link href="/day-summary" className="px-3 py-1 border border-zinc-400 rounded-md hover:bg-[#252525] transition-colors">

@@ -1,11 +1,22 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 export type DayPlanProjectInput = {
   projectId: string;
   projectSource: string;
   projectName?: string | null;
+};
+
+export type WorkLogItem = {
+  id: string;
+  description: string;
+  timestamp: number;
+  projectId: string | null; // null for unplanned work
+  unplannedReason?: string;
+  mentionedIssues?: Record<string, string>; // Map of issue identifier or project name to URL
+  duration?: number; // Duration in minutes
 };
 
 export type WorkLogItemInput = {
@@ -41,6 +52,26 @@ type StartDayPlanInput = {
   timezone?: string | null;
   projects: DayPlanProjectInput[];
 };
+
+export async function getDayPlanId(): Promise<string> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('day_plans')
+    .select('id')
+    .order('plan_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();  // Returns null instead of error when 0 rows
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('No day plan found');
+  }
+
+  return data.id;
+}
 
 export async function startDayPlan({ planDate, timezone, projects }: StartDayPlanInput) {
   const supabase = createServerSupabaseClient();
@@ -148,6 +179,8 @@ export async function upsertWorkLogItem({ dayPlanId, item }: UpsertWorkLogItemIn
     throw new Error(error.message);
   }
 
+  revalidatePath('/day-work');
+
   return { ok: true };
 }
 
@@ -168,6 +201,8 @@ export async function deleteWorkLogItem({ dayPlanId, itemId }: DeleteWorkLogItem
   if (error) {
     throw new Error(error.message);
   }
+
+  revalidatePath('/day-work');
 
   return { ok: true };
 }

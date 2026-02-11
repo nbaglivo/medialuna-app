@@ -1,3 +1,5 @@
+import { WorkLogItem } from "@/app/actions/day-plan";
+
 const FOCUS_STORAGE_KEY = 'medialuna_focus_projects';
 const WORK_LOG_STORAGE_KEY = 'medialuna_work_log';
 const DAY_PLAN_STORAGE_KEY = 'medialuna_day_plan';
@@ -5,16 +7,6 @@ const DAY_PLAN_STORAGE_KEY = 'medialuna_day_plan';
 export type FocusSession = {
   projectIds: string[];
   timestamp: number;
-};
-
-export type WorkLogItem = {
-  id: string;
-  description: string;
-  timestamp: number;
-  projectId: string | null; // null for unplanned work
-  unplannedReason?: string;
-  mentionedIssues?: Record<string, string>; // Map of issue identifier or project name to URL
-  duration?: number; // Duration in minutes
 };
 
 export type WorkLogSession = {

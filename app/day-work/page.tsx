@@ -1,8 +1,23 @@
 import DayWorkPageClient from '@/components/day-work-page-client';
+import { getWorkLog, WorkLogItem } from '@/lib/focus-storage';
 import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
+import { getDayPlanId, getDayPlanWorkLog } from '../actions/day-plan';
 
-export default function DayWorkPage() {
+export default async function DayWorkPage() {
+  const dayPlanId = await getDayPlanId();
+  const dayPlanWorkLog = await getDayPlanWorkLog(dayPlanId);
+  const workLogItems: WorkLogItem[] = dayPlanWorkLog.map((workLogItem) => ({
+    id: workLogItem.id,
+    description: workLogItem.description,
+    timestamp: workLogItem.timestamp,
+    projectId: workLogItem.projectId  ,
+    projectSource: workLogItem.projectSource,
+    unplannedReason: workLogItem.unplannedReason ?? undefined,
+    mentionedIssues: workLogItem.mentionedIssues ?? undefined,
+    duration: workLogItem.durationMinutes ?? undefined,
+  }));
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#141414]">
       {/* Header */}
@@ -26,7 +41,7 @@ export default function DayWorkPage() {
           </div>
         </div>
       </div>
-      <DayWorkPageClient />
+      <DayWorkPageClient workLogItems={workLogItems} />
     </div>
   )
 }

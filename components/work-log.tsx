@@ -7,17 +7,15 @@ import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
-  getWorkLog,
-  removeWorkLogItem,
   getDayPlanSession,
-  saveDayPlanSession,
-  setWorkLogItems
+  saveDayPlanSession
 } from '@/lib/focus-storage';
 import {
   startDayPlan,
   syncDayPlanProjects,
   upsertWorkLogItem,
   deleteWorkLogItem,
+  getDayPlanId,
 } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
 import { RecordUnitOfWork } from './new-record-form';
@@ -25,16 +23,14 @@ import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
 
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
-  initialItems?: WorkLogItem[];
-  onWorkLogChange: (workLog: WorkLogItem[]) => void;
+  workLogItems: WorkLogItem[];
 };
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
-  const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
+export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps) {
   const recordUnitOfWorkRef = useRef<HTMLDivElement>(null);
   useOnClickOutside(recordUnitOfWorkRef as RefObject<HTMLElement>, () => {
     setIsRecordUnitOfWorkOpen(false);
@@ -42,26 +38,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
   const [isLoadingIssues, setIsLoadingIssues] = useState(false);
   const [isRecordUnitOfWorkOpen, setIsRecordUnitOfWorkOpen] = useState(false);
-  const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
-  
-  useEffect(() => {
-    onWorkLogChange(workItems);
-  }, [workItems]);
-
-  useEffect(() => {
-    if (initialItems) {
-      setWorkItems(initialItems);
-      setWorkLogItems(initialItems);
-    } else {
-      loadWorkLog();
-    }
-
-    const session = getDayPlanSession();
-    if (session) {
-      setDayPlanId(session.dayPlanId);
-    }
-  }, [initialItems]);
 
   // Load Linear issues when focused projects change
   useEffect(() => {
@@ -74,7 +51,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     const syncProjects = async () => {
       if (focusedProjects.length === 0) return;
 
-      const dayPlanIdValue = await ensureDayPlanId();
+      const dayPlanIdValue = await getDayPlanId();
       if (!dayPlanIdValue) return;
 
       await syncDayPlanProjects({
@@ -92,34 +69,8 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
     });
   }, [focusedProjects]);
 
-  const ensureDayPlanId = async () => {
-    const session = getDayPlanSession();
-    if (session) {
-      setDayPlanId(session.dayPlanId);
-      return session.dayPlanId;
-    }
-
-    if (focusedProjects.length === 0) return null;
-
-    const planDate = new Date().toISOString().split('T')[0];
-    const { dayPlanId: createdId } = await startDayPlan({
-      planDate,
-      projects: focusedProjects.map(project => ({
-        projectId: project.id,
-        projectSource: project.source,
-        projectName: project.name,
-      })),
-    });
-
-    saveDayPlanSession(createdId, planDate);
-    setDayPlanId(createdId);
-    return createdId;
-  };
-
   const onWorkLogAdded = async (newItem: WorkLogItem) => {
-    setWorkItems(prev => [...prev, newItem]);
-
-    const dayPlanIdValue = await ensureDayPlanId();
+    const dayPlanIdValue = await getDayPlanId();
     if (dayPlanIdValue) {
       const projectSource = newItem.projectId
         ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
@@ -139,11 +90,6 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
         },
       });
     }
-  };
-
-  const loadWorkLog = () => {
-    const items = getWorkLog();
-    setWorkItems(items);
   };
 
   const loadLinearIssues = async () => {
@@ -197,11 +143,8 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
   };
 
   const handleDelete = async (id: string) => {
-    removeWorkLogItem(id);
-    setWorkItems(prev => prev.filter(item => item.id !== id));
-
     try {
-      const dayPlanIdValue = dayPlanId ?? await ensureDayPlanId();
+      const dayPlanIdValue = await getDayPlanId();
       if (dayPlanIdValue) {
         await deleteWorkLogItem({ dayPlanId: dayPlanIdValue, itemId: id });
       }
@@ -242,7 +185,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
       {/* Work Items List */}
       <div className="border border-zinc-500/10 p-6 rounded-lg flex-1 min-h-0 overflow-y-auto ">
-        {workItems.length === 0 && (
+        {workLogItems.length === 0 && (
           <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
             <p className="text-zinc-500 text-sm">No tasks logged yet</p>
             <p className="text-zinc-600 text-xs mt-1">Start logging your work</p>
@@ -251,7 +194,7 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
         <div className="overflow-y-auto h-full relative gap-2 flex flex-col-reverse justify-end">
           <AnimatePresence initial={false}>
-            {workItems.map((item) => (
+            {workLogItems.map((item) => (
               <motion.div
                 layout="position"
                 key={item.id}
