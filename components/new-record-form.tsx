@@ -8,7 +8,7 @@ import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
 enum Step {
     ProvideDescription = 'provideDescription',
     ProvideProject = 'provideProject',
-    Accept = 'accept',
+    Accept = 'accept'
 }
 
 export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded, onClose }: { linearIssues: LinearIssue[], focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void, onClose: () => void }) {
@@ -22,13 +22,12 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
     const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
     const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [step, setStep] = useState<Step>(Step.ProvideDescription);
 
     useEffect(() => {
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
-
-    const [step, setStep] = useState<Step>(Step.ProvideDescription);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedProjectId, step, showMentionDropdown]);
 
     const handleAddTask = async () => {
         const description = newTaskDescription.trim();
@@ -215,23 +214,15 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
             transition={{ layout: { duration: 0.4, ease: 'easeOut', delay: step === Step.Accept ? 0.3 : 0 } }}
 
             className={`
-          flex flex-col items-center gap-3 py-2
-          border border-[#444] bg-[#1a1a1a]
-          rounded-lg
-          transition-colors       
-          fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]
-        `}
+                flex flex-col items-center gap-3 py-2
+                border border-[#444] bg-[#1a1a1a]
+                rounded-lg
+                transition-colors       
+                fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]
+            `}
         >
-            {/* <div className="flex-shrink-0">
-          <div className="size-5 rounded-full border-2 border-dashed border-zinc-600" />
-        </div> */}
-
             {/* Main Section */}
             <div className={`px-4 w-full h-full ${step === Step.Accept ? '' : 'grid place-items-center'}`}>
-                {/* <div className="absolute right-0 top-0 text-sm">
-            {step}
-          </div> */}
-
                 {step === Step.ProvideDescription && (
                     <motion.input
                         ref={inputRef}
@@ -241,17 +232,13 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                         value={newTaskDescription}
                         onChange={handleInputChange}
                         placeholder={WORK_LOG_RECORD_PLACEHOLDER}
-                        style={{
-                            gridArea: '1 / 1',
-                        }}
+                        style={{ gridArea: '1 / 1' }}
                         className="flex-1 w-full h-full bg-transparent text-white placeholder-zinc-500 outline-none z-10"
                     />
                 )}
 
                 <div
-                    style={{
-                        gridArea: '1 / 1',
-                    }}
+                    style={{ gridArea: '1 / 1' }}
                     className={
                         `w-full rounded-md flex flex-col gap-4 ${step !== Step.ProvideDescription ? 'justify-between items-center' : 'opacity-0'}`
                     }
