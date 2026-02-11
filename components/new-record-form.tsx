@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { addWorkLogItem, type WorkLogItem, } from '@/lib/focus-storage';
-import { UnifiedProject } from '@/lib/task-source';
+import { generateFallbackUuid } from '@/lib/focus-storage';
+import { type UnifiedProject } from '@/lib/task-source';
+import { type WorkLogItem } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
 import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
 
@@ -38,13 +39,16 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
         const unplannedReason = undefined;
 
         try {
-            const newItem = addWorkLogItem({
+            const generatedId = globalThis.crypto?.randomUUID?.() ?? generateFallbackUuid();
+            const newItem: WorkLogItem = {
                 description,
-                projectId: selectedProjectId,
-                unplannedReason,
-                mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
-                duration: undefined, // TODO: add duration (in minutes)
-            });
+                    projectId: selectedProjectId,
+                    unplannedReason,
+                    mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
+                    duration: undefined, // TODO: add duration (in minutes)
+                id: generatedId,
+                timestamp: Date.now(),
+            };
 
             onWorkLogAdded(newItem);
 

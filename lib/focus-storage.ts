@@ -62,7 +62,7 @@ function getTodayDateString(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function generateFallbackUuid(): string {
+export function generateFallbackUuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
     const rand = Math.floor(Math.random() * 16);
     const value = char === 'x' ? rand : (rand & 0x3) | 0x8;
@@ -251,39 +251,6 @@ export function getWorkLogSession(): WorkLogSession | null {
 export function getWorkLog(): WorkLogItem[] {
   const session = getWorkLogSession();
   return session?.items ?? [];
-}
-
-/**
- * Add a new work log item
- */
-export function addWorkLogItem(item: Omit<WorkLogItem, 'id' | 'timestamp'>): WorkLogItem {
-  if (typeof window === 'undefined') {
-    throw new Error('Cannot add work log item on server side');
-  }
-
-  const generatedId = globalThis.crypto?.randomUUID?.() ?? generateFallbackUuid();
-
-  const newItem: WorkLogItem = {
-    ...item,
-    id: generatedId,
-    timestamp: Date.now(),
-  };
-  
-  let session = getWorkLogSession();
-  
-  if (!session) {
-    // Create new session
-    session = {
-      items: [newItem],
-      timestamp: Date.now(),
-    };
-  } else {
-    // Add to existing session
-    session.items.push(newItem);
-  }
-  
-  saveWorkLogSession(session);
-  return newItem;
 }
 
 /**
