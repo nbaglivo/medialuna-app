@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, RefObject } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useOnClickOutside } from 'usehooks-ts';
 import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
@@ -217,6 +217,17 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+
+      <AnimatePresence>
+        {isRecordUnitOfWorkOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50"
+          />
+        )}
+      </AnimatePresence>
 
       {isRecordUnitOfWorkOpen && (
         <div ref={recordUnitOfWorkRef}>
