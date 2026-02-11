@@ -5,38 +5,15 @@ import ProjectCard from './project-card';
 
 type UnifiedProjectsListProps = {
   projects: UnifiedProject[];
-  isLoading: boolean;
-  error: string | null;
   selectedProjectIds?: Set<string>;
   onProjectToggle?: (projectId: string) => void;
 };
 
 export default function UnifiedProjectsList({
   projects,
-  isLoading,
-  error,
   selectedProjectIds = new Set(),
   onProjectToggle,
 }: UnifiedProjectsListProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="size-4 border-2 border-t-transparent border-zinc-400 rounded-full animate-spin" />
-          <span>Loading projects...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-sm text-red-400">{error}</div>
-      </div>
-    );
-  }
-
   if (projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">

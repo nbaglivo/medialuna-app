@@ -70,7 +70,7 @@ export default function ProjectCard({ project, isSelected, onProjectToggle }: { 
         {/* Dates */}
         {project.targetDate && (
           <div className="mt-2 text-xs text-zinc-500">
-            Due: {new Date(project.targetDate).toLocaleDateString()}
+            Due: {new Date(project.targetDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
           </div>
         )}
   

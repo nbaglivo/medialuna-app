@@ -3,20 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
-import {
-  type UnifiedProject, 
-  type LinearProject,
-  normalizeLinearProject 
-} from '@/lib/task-source';
-import { getDayPlanSession, saveDayPlanSession } from '@/lib/focus-storage';
+import { type UnifiedProject } from '@/lib/task-source';
+import { saveDayPlanSession } from '@/lib/focus-storage';
 import { startDayPlan } from '@/app/actions/day-plan';
 
-
-export default function IndexPageClient() {
+export default function IndexPageClient({ allProjects }: { allProjects: UnifiedProject[] }) {
   const router = useRouter();
-  const [allProjects, setAllProjects] = useState<UnifiedProject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isStarting, setIsStarting] = useState(false);
@@ -80,65 +72,13 @@ export default function IndexPageClient() {
   };
 
   useEffect(() => {
-    const abortController = new AbortController();
-
-    async function loadAllProjects() {
-      const dayPlanSession = getDayPlanSession();
-      if (dayPlanSession) {
-        router.replace('/day-work');
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-      
-      const projectsFromAllSources: UnifiedProject[] = [];
-
-      // Fetch Linear projects
-      try {
-        const linearResponse = await fetch('/api/linear/projects', {
-          signal: abortController.signal
-        });
-
-        if (linearResponse.ok) {
-          const linearPayload = await linearResponse.json();
-          const linearProjects: LinearProject[] = linearPayload.projects ?? [];
-          const normalizedLinear = linearProjects.map(normalizeLinearProject);
-          projectsFromAllSources.push(...normalizedLinear);
-        } else if (linearResponse.status !== 401) {
-          // Ignore 401 (not connected), but log other errors
-          console.warn('Failed to load Linear projects:', linearResponse.status);
-        }
-      } catch (error) {
-        if (!abortController.signal.aborted) {
-          console.warn('Error loading Linear projects:', error);
-        }
-      }
-
-      // TODO: Add GitHub projects fetch when API is ready
-      // TODO: Add App projects fetch when API is ready
-
-      if (!abortController.signal.aborted) {
-        setAllProjects(projectsFromAllSources);
-        setIsLoading(false);
-      }
-    }
-
-    loadAllProjects();
-
-    return () => {
-      abortController.abort();
-    };
-  }, [router]);
-
-  useEffect(() => {
     if (selectedStatus !== 'All' && !statusOptions.includes(selectedStatus)) {
       setSelectedStatus('All');
     }
   }, [selectedStatus, statusOptions]);
 
   return (
-    <div className="flex flex-col h-full w-full px-4 md:px-8 lg:px-16">
+    <div className="flex flex-col h-full w-full px-4 md:px-8 lg:px-16 overflow-y-auto">
       <div className="flex-1 flex flex-col mt-8 sm:mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] h-full gap-2 bg-background text-foreground">
           <div className="h-full overflow-y-auto flex flex-col space-y-4 px-2 sm:px-4">
@@ -160,7 +100,6 @@ export default function IndexPageClient() {
                     id="project-status-filter"
                     value={selectedStatus}
                     onChange={(event) => setSelectedStatus(event.target.value)}
-                    disabled={isLoading}
                     className="w-40 rounded-md border border-[#333] bg-[#1e1e1e] px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                   >
                     <option value="All">All</option>
@@ -177,8 +116,6 @@ export default function IndexPageClient() {
             <div className="flex-1 overflow-y-auto pb-4">
               <UnifiedProjectsList
                 projects={filteredProjects}
-                isLoading={isLoading}
-                error={error}
                 selectedProjectIds={selectedProjectIds}
                 onProjectToggle={handleProjectToggle}
               />
