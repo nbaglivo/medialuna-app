@@ -249,25 +249,25 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
           </div>
         )}
 
-        <div className="overflow-y-auto h-full relative gap-2">
-          {workItems.map(
-            (item, index) => {
-              const inverseIndex = workItems.length - index - 1;
-              const translateY = `calc(${inverseIndex * 100}% + ${inverseIndex * 10}px)`;
-              return (
-              <div
+        <div className="overflow-y-auto h-full relative gap-2 flex flex-col-reverse justify-end">
+          <AnimatePresence initial={false}>
+            {workItems.map((item) => (
+              <motion.div
+                layout="position"
                 key={item.id}
-                style={{ transform: `translateY(${translateY})` }}
-                className={`absolute w-full transition-transform duration-1000 ease-in-out`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 <UnitOfWorkRecord
                   item={item}
                   project={getProjectById(item.projectId)}
                   onDelete={handleDelete}
                 />
-              </div>
-            );
-          })}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
 
