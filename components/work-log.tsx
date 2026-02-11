@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, RefObject } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useOnClickOutside } from 'usehooks-ts';
 import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
@@ -13,8 +14,7 @@ import {
   removeWorkLogItem,
   getDayPlanSession,
   saveDayPlanSession,
-  setWorkLogItems,
-  generateFallbackUuid,
+  setWorkLogItems
 } from '@/lib/focus-storage';
 import {
   startDayPlan,
@@ -52,6 +52,8 @@ type MentionOption = {
 
 const UNPLANNED_PROJECT_ID = '__unplanned__';
 
+const workLogRecordPlaceholder = 'Record a new work item...';
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -64,7 +66,13 @@ enum Step {
 
 export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange }: WorkLogProps) {
   const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
+  const recordUnitOfWorkRef = useRef<HTMLDivElement>(null);
+  useOnClickOutside(recordUnitOfWorkRef as RefObject<HTMLElement>, () => {
+    setIsRecordUnitOfWorkOpen(false);
+  });
+
   const [isLoadingIssues, setIsLoadingIssues] = useState(false);
+  const [isRecordUnitOfWorkOpen, setIsRecordUnitOfWorkOpen] = useState(false);
   const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   
@@ -239,7 +247,19 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col">
+
+      {isRecordUnitOfWorkOpen && (
+        <div ref={recordUnitOfWorkRef}>
+          <RecordUnitOfWork
+            linearIssues={linearIssues}
+            focusedProjects={focusedProjects}
+            onWorkLogAdded={onWorkLogAdded}
+            onClose={() => setIsRecordUnitOfWorkOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Work Items List */}
       <div className="border border-zinc-500/10 p-6 rounded-lg flex-1 min-h-0 overflow-y-auto ">
         {workItems.length === 0 && (
@@ -271,19 +291,27 @@ export default function WorkLog({ focusedProjects, initialItems, onWorkLogChange
         </div>
       </div>
 
-      {/* Record New Work Item Input */}
-      <div className="min-h-12">
-        <RecordUnitOfWork linearIssues={linearIssues} focusedProjects={focusedProjects} onWorkLogAdded={onWorkLogAdded} />
+      {/* Record New Work Item Trigger */}
+      <div className="h-12 mt-4">
+        {
+          !isRecordUnitOfWorkOpen && (
+            <motion.div
+              layout="position"
+              layoutId="work-log-input"
+              onClick={() => setIsRecordUnitOfWorkOpen(true)}
+              className="border border-[#444] bg-[#1a1a1a] rounded-lg p-2 text-zinc-500"
+            >
+              <motion.span>{workLogRecordPlaceholder}</motion.span>
+            </motion.div>
+        )}
       </div>
     </div>
   );
 }
 
-function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { linearIssues: LinearIssue[], focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void }) {
+function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded, onClose }: { linearIssues: LinearIssue[], focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void, onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const [lockedWidth, setLockedWidth] = useState<number | null>(null);
 
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [mentionQuery, setMentionQuery] = useState('');
@@ -293,14 +321,12 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const [step, setStep] = useState<Step>(Step.ProvideDescription);
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-  const handleFocus = () => {
-    if (ref.current) {
-      setLockedWidth(ref.current.getBoundingClientRect().width);
-    }
-    setIsFocused(true);
-  };
+  const [step, setStep] = useState<Step>(Step.ProvideDescription);
 
   const handleAddTask = async () => {
     const description = newTaskDescription.trim();
@@ -326,8 +352,8 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
       setSelectedProjectId('');
       setMentionedIssues({});
 
-      setIsFocused(false);
       setStep(Step.ProvideDescription);
+      onClose();
     } catch (error) {
       console.error('Failed to add work log item:', error);
     }
@@ -427,7 +453,6 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   }
 
   function descriptionProvided() {
-    
     // If no project selected, show selector
     if (!selectedProjectId) {
       setStep(Step.ProvideProject);
@@ -442,42 +467,41 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
     setStep(Step.Accept);
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (showMentionDropdown) {
-      const filteredMentions = getFilteredMentions();
-      
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev => 
-          prev < filteredMentions.length - 1 ? prev + 1 : prev
-        );
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (step === Step.ProvideDescription) {
+      if (showMentionDropdown) {
+        const filteredMentions = getFilteredMentions();
+        
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedMentionIndex(prev => 
+            prev < filteredMentions.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (filteredMentions.length > 0) {
+            selectMention(filteredMentions[selectedMentionIndex]);
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowMentionDropdown(false);
+        }
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (filteredMentions.length > 0) {
-          selectMention(filteredMentions[selectedMentionIndex]);
-        }
+        descriptionProvided();
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        setNewTaskDescription('');
+        setMentionedIssues({});
         setShowMentionDropdown(false);
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      descriptionProvided();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsFocused(false);
-      setNewTaskDescription('');
-      setMentionedIssues({});
-      setShowMentionDropdown(false);
-      setSelectedMentionIndex(0);
-      setMentionQuery('');
-      setMentionStartPos(0);
-      setSelectedProjectId(null);
-      if (inputRef.current) {
-        inputRef.current.blur();
+        setSelectedMentionIndex(0);
+        setMentionQuery('');
+        setMentionStartPos(0);
+        setSelectedProjectId(null);
+        onClose();
       }
     }
   };
@@ -485,24 +509,15 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
   return (
     <motion.div
       ref={ref}
-      layout="position"
+      layoutId="work-log-input"
       transition={{ layout: { duration: 0.4, ease: 'easeOut', delay: step === Step.Accept ? 0.3 : 0 } }}
-      initial={false}
-
-      style={{
-        width: isFocused && lockedWidth ? lockedWidth : undefined,
-      }}
 
       className={`
-        flex flex-col items-center gap-3 py-3
+        flex flex-col items-center gap-3 py-2
         border border-[#444] bg-[#1a1a1a]
         rounded-lg
-        transition-colors
-        
-        ${isFocused
-          ? "fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]"
-          : "w-full"
-        }
+        transition-colors       
+        fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]
       `}
     >
       {/* <div className="flex-shrink-0">
@@ -516,20 +531,14 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
         </div> */}
 
         {step === Step.ProvideDescription && (
-          <input
+          <motion.input
             ref={inputRef}
             id="work-log-input"
+            autoFocus={true}
             autoComplete='off'
             value={newTaskDescription}
-            onFocus={handleFocus}
-            onBlur={() => {
-              if (!showMentionDropdown && step === Step.ProvideDescription) {
-                // setIsFocused(false);
-              }
-            }}
             onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Record a new work item..."
+            placeholder={workLogRecordPlaceholder}
             style={{
               gridArea: '1 / 1',
             }}
@@ -615,7 +624,7 @@ function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded }: { l
 
       <AnimatePresence>
         {/* @ Mention Dropdown */}
-        {!showMentionDropdown && isFocused && step === Step.ProvideDescription && (
+        {!showMentionDropdown && step === Step.ProvideDescription && (
           <div className="w-full mt-1 py-2 px-2 border-t-1 border-[#333] bg-[#1a1a1a] shadow-lg">
             <div className="text-sm text-zinc-500 flex items-center gap-1">
               <span className="font-mono text-[10px] bg-zinc-500/10 border border-zinc-500 px-2 py-0.5 rounded-sm">Tip</span> type <span className="font-mono text-purple-500 px-1 py-0.5 rounded-sm">@</span> to mention issues or projects
