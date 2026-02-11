@@ -271,34 +271,15 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                         </span>
                     </motion.span>
 
-                    {step === Step.Accept && (
-                        <motion.div className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.4, ease: "easeOut" }}
-                        >
-                            <div className="text-xs text-zinc-500 text-center">
-                                Want to start right away?
-                            </div>
-                            <button
-                                className='cursor-pointer flex gap-2 items-center justify-center text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
-                                onClick={handleAddTask}
-                            >
-                                Yes, start now
-                            </button>
-                            <button
-                                className='cursor-pointer flex gap-2 rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
-                                onClick={handleAddTask}
-                            >
-                                Just log it
-                            </button>
-                        </motion.div>
-                    )}
-
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
                         {step === Step.ProvideProject && (
                             <ProjectSelector projects={focusedProjects} onProjectSelected={manuallySelectProject} />
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {step === Step.Accept && (
+                            <AcceptRecord onAddTask={handleAddTask} />
                         )}
                     </AnimatePresence>
                 </div>
@@ -334,7 +315,34 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                     </div>
                 )}
             </AnimatePresence>
+        </motion.div>
+    );
+}
 
+function AcceptRecord({ onAddTask }: { onAddTask: () => void }) {
+    return (
+        <motion.div
+            className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+            <div className="text-xs text-zinc-500 text-center">
+                Want to start right away?
+            </div>
+            <button
+                className='cursor-pointer flex gap-2 items-center justify-center text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
+                onClick={onAddTask}
+            >
+                Yes, start now
+            </button>
+            <button
+                className='cursor-pointer flex justify-center items-center gap-2 rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
+                onClick={onAddTask}
+            >
+                Just log it
+            </button>
         </motion.div>
     );
 }
@@ -363,10 +371,11 @@ function MentionDropdown({
 
     return (
         <motion.div
+            layout
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="origin-top"
         >
             <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -447,10 +456,10 @@ function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedPro
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="mt-4 flex flex-col gap-3"
         >
-            <h2 className="text-sm text-zinc-500">Was this work done in a specific project?</h2>
+            <h2 className="text-sm text-zinc-500">Was this work done in the scope of an specific project?</h2>
             <div className="flex flex-wrap gap-2">
                 {projects.map(project => (
                     <button
