@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateFallbackUuid } from '@/lib/focus-storage';
+import { generateFallbackUuid } from '@/lib/utils';
 import { type UnifiedProject } from '@/lib/task-source';
 import { type WorkLogItem } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';

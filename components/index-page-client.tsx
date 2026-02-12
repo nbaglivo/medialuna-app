@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import { type UnifiedProject } from '@/lib/task-source';
-import { saveDayPlanSession } from '@/lib/focus-storage';
 import { startDayPlan } from '@/app/actions/day-plan';
 
 export default function IndexPageClient({ allProjects }: { allProjects: UnifiedProject[] }) {
@@ -52,7 +51,7 @@ export default function IndexPageClient({ allProjects }: { allProjects: UnifiedP
     try {
       const planDate = new Date().toISOString().split('T')[0];
       const selectedProjects = allProjects.filter(project => selectedProjectIds.has(project.id));
-      const { dayPlanId } = await startDayPlan({
+      await startDayPlan({
         planDate,
         projects: selectedProjects.map(project => ({
           projectId: project.id,
@@ -60,8 +59,6 @@ export default function IndexPageClient({ allProjects }: { allProjects: UnifiedP
           projectName: project.name,
         })),
       });
-
-      saveDayPlanSession(dayPlanId, planDate);
 
       // Navigate to day work page
       router.push('/day-work');

@@ -62,14 +62,6 @@ function getTodayDateString(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-export function generateFallbackUuid(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
-    const rand = Math.floor(Math.random() * 16);
-    const value = char === 'x' ? rand : (rand & 0x3) | 0x8;
-    return value.toString(16);
-  });
-}
-
 /**
  * Check if the focus session has expired (past midnight from when it was set)
  */
@@ -130,18 +122,6 @@ export function getDayWorkSession(): FocusSession | null {
 export function clearFocusSession(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(FOCUS_STORAGE_KEY);
-}
-
-export function saveDayPlanSession(dayPlanId: string, planDate: string): void {
-  if (typeof window === 'undefined') return;
-
-  const session: DayPlanSession = {
-    dayPlanId,
-    planDate,
-    timestamp: Date.now(),
-  };
-
-  sessionStorage.setItem(DAY_PLAN_STORAGE_KEY, JSON.stringify(session));
 }
 
 export function getDayPlanSession(): DayPlanSession | null {
