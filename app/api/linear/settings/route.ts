@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     cookieStore.delete(ISSUE_STATE_COOKIE);
     cookieStore.delete(ISSUE_QUERY_COOKIE);
     cookieStore.delete(ISSUE_ASSIGNEE_COOKIE);
-    return NextResponse.redirect(new URL("/config", request.url));
+    return NextResponse.redirect(new URL("/settings", request.url));
   }
 
   const state = (formData.get("state") ?? "").toString().trim();
@@ -57,5 +57,5 @@ export async function POST(request: Request) {
     cookieStore.delete(ISSUE_ASSIGNEE_COOKIE);
   }
 
-  return NextResponse.redirect(new URL("/config", request.url));
+  return NextResponse.redirect(new URL("/settings", request.url));
 }

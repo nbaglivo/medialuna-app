@@ -39,7 +39,7 @@ export default function RootLayout({
           </Link>
           <div className="flex fixed right-2 top-2 sm:right-4 sm:top-4 justify-end mb-2 space-x-2 z-10">
             <Link
-              href="/config"
+              href="/settings"
               className="p-2 rounded-full hover:bg-[#252525] transition-colors"
               title="Settings"
             >

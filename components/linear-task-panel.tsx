@@ -42,7 +42,7 @@ export default function LinearTaskPanel({
         ) : needsConnection ? (
           <div className="space-y-2">
             <Link
-              href="/config"
+              href="/settings?integration=linear"
               className="inline-flex items-center rounded-md text-muted-foreground text-sm font-medium px-3 py-2 underline transition-colors"
             >
               Configure Linear Integration

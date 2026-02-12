@@ -73,7 +73,7 @@ export async function GET(request: Request) {
 
     cookieStore.delete(STATE_COOKIE);
 
-    return NextResponse.redirect(new URL("/config", request.url));
+    return NextResponse.redirect(new URL("/settings", request.url));
   } catch (error) {
     const message = error instanceof Error ? error.message : "OAuth exchange failed.";
     return NextResponse.json({ error: message }, { status: 500 });

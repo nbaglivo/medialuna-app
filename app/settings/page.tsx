@@ -166,7 +166,7 @@ const IntegrationMenu = ({
     <div className="flex flex-col items-start w-10 sm:w-12 h-full">
 
       <div className="flex-1 flex flex-col mx-1 sm:mx-2 items-center pt-6 sm:pt-10 gap-3 sm:gap-5">
-        <Link href="/config?integration=linear"
+        <Link href="/settings?integration=linear"
           className={cn(
             "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
             isTaskSource(activeIntegration, TaskSources.Linear)
@@ -182,7 +182,7 @@ const IntegrationMenu = ({
             <span className="absolute -left-1 w-1 h-4 sm:h-5 bg-indigo-500 rounded-r-sm" />
           )}
         </Link>
-        <Link href="/config?integration=github"
+        <Link href="/settings?integration=github"
           className={cn(
             "w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center",
             isTaskSource(activeIntegration, TaskSources.Github)

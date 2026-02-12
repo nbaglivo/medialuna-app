@@ -7,5 +7,5 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   cookieStore.delete(TOKEN_COOKIE);
 
-  return NextResponse.redirect(new URL("/config", request.url));
+  return NextResponse.redirect(new URL("/settings", request.url));
 }
