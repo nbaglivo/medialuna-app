@@ -38,7 +38,7 @@ export async function getLinearData(): Promise<LinearDataResult> {
   const token = cookieToken;
 
   if (!token) {
-    throw new Error("Linear is not connected. Connect your account in Settings.");
+    return { user: null, projects: [], connected: false };
   }
 
   const usesOAuthToken = Boolean(cookieToken && !cookieToken.startsWith("lin_api_"));
