@@ -180,15 +180,20 @@ export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps)
 
       {/* Work Items List */}
       <div className="border border-zinc-500/10 p-6 rounded-lg flex-1 min-h-0 overflow-y-auto ">
-        {workLogItems.length === 0 && (
-          <div className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4">
-            <p className="text-zinc-500 text-sm">No tasks logged yet</p>
-            <p className="text-zinc-600 text-xs mt-1">Start logging your work</p>
-          </div>
-        )}
-
         <div className="overflow-y-auto h-full relative gap-2 flex flex-col-reverse justify-end">
-          <AnimatePresence initial={false}>
+          <AnimatePresence mode="popLayout" initial={false}>
+            { workLogItems.length === 0 && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 350, damping: 40 }}
+                className="text-center py-8 border border-dashed border-[#333] rounded-lg mb-4"
+              >
+                <p className="text-zinc-500 text-sm">No tasks logged yet</p>
+                <p className="text-zinc-600 text-xs mt-1">Start logging your work</p>
+              </motion.div>
+            )}
             {workLogItems.map((item) => (
               <motion.div
                  key={item.id}
