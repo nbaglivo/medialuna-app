@@ -1,26 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import { type UnifiedProject } from '@/lib/task-source';
 import { startDayPlan } from '@/app/actions/day-plan';
 
-export default function IndexPageClient({ allProjects }: { allProjects: UnifiedProject[] }) {
+export default function IndexPageClient({ allProjects, statusOptions }: { allProjects: UnifiedProject[], statusOptions: string[] }) {
   const router = useRouter();
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isStarting, setIsStarting] = useState(false);
-
-  const statusOptions = useMemo(() => {
-    const options = new Set<string>();
-    allProjects.forEach((project) => {
-      if (project.state) {
-        options.add(project.state);
-      }
-    });
-    return Array.from(options).sort((a, b) => a.localeCompare(b));
-  }, [allProjects]);
 
   const filteredProjects =
     selectedStatus === 'All'

@@ -17,5 +17,6 @@ export default async function Index() {
     </div>;
   }
 
-  return <IndexPageClient allProjects={linearProjects} />;
+  const statusOptions = [...new Set(linearProjects.map(p => p.state).filter(Boolean))].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
+  return <IndexPageClient allProjects={linearProjects} statusOptions={statusOptions as string[]} />;
 }
