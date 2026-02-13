@@ -1,43 +1,29 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeftIcon, CheckIcon, CopyIcon } from '@radix-ui/react-icons';
-import {
-  type DaySummaryStatistics,
-  saveDaySummary,
-  clearCurrentDay,
-  getDayPlanSession,
-  setWorkLogItems,
-} from '@/lib/focus-storage';
-import { TaskSources, type TaskSource, type UnifiedProject } from '@/lib/task-source';
-import { getDayPlanProjects, getDayPlanWorkLog, updateDayPlanReflection, type WorkLogItem } from '@/app/actions/day-plan';
+import { type UnifiedProject } from '@/lib/task-source';
+import { updateDayPlanReflection, type WorkLogItem } from '@/app/actions/day-plan';
 
-export default function DaySummary() {
-  const router = useRouter();
-  const [workItems, setWorkItems] = useState<WorkLogItem[]>([]);
-  const [focusedProjects, setFocusedProjects] = useState<UnifiedProject[]>([]);
+export type DaySummaryStatistics = {
+  totalTasks: number;
+  totalMinutes: number;
+  projectBreakdown: {
+    projectId: string;
+    projectName: string;
+    count: number;
+    minutes: number;
+  }[];
+  unplannedCount: number;
+};
+
+export default function DaySummary({ dayPlanId, workLogItems, focusedProjects }: { dayPlanId: string, workLogItems: WorkLogItem[], focusedProjects: UnifiedProject[] }) {
   const [reflection, setReflection] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [dayPlanId, setDayPlanId] = useState<string | null>(null);
   const reflectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const session = getDayPlanSession();
-    if (!session) {
-      router.replace('/');
-      return;
-    }
-
-    setDayPlanId(session.dayPlanId);
-    loadData(session.dayPlanId);
-  }, [router]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
     if (reflectionTimeoutRef.current) {
       clearTimeout(reflectionTimeoutRef.current);
     }
@@ -53,73 +39,21 @@ export default function DaySummary() {
         clearTimeout(reflectionTimeoutRef.current);
       }
     };
-  }, [reflection, isLoading, focusedProjects]);
-
-  const loadData = async (activeDayPlanId: string) => {
-    setIsLoading(true);
-
-    try {
-      const [dayPlanProjects, dayPlanWorkLog] = await Promise.all([
-        getDayPlanProjects(activeDayPlanId),
-        getDayPlanWorkLog(activeDayPlanId),
-      ]);
-
-      const items = dayPlanWorkLog.map(item => ({
-        id: item.id,
-        description: item.description,
-        timestamp: item.timestamp,
-        projectId: item.projectId,
-        unplannedReason: item.unplannedReason ?? undefined,
-        mentionedIssues: item.mentionedIssues ?? undefined,
-        duration: item.durationMinutes ?? undefined,
-      }));
-
-      setWorkItems(items);
-      setWorkLogItems(items);
-
-      const focused = dayPlanProjects.map(project => ({
-        id: project.projectId,
-        name: project.projectName ?? 'Unknown Project',
-        url: '',
-        source: (project.projectSource ? project.projectSource as TaskSource : TaskSources.App),
-      }));
-
-      setFocusedProjects(focused);
-    } catch (error) {
-      console.error('Error loading day plan data:', error);
-    }
-
-    setIsLoading(false);
-  };
-
-  const ensureDayPlanId = async () => {
-    const session = getDayPlanSession();
-    if (session) {
-      setDayPlanId(session.dayPlanId);
-      return session.dayPlanId;
-    }
-    return null;
-  };
+  }, [reflection, focusedProjects]);
 
   const handleReflectionAutosave = async () => {
-    const dayPlanIdValue = dayPlanId ?? await ensureDayPlanId();
-    if (!dayPlanIdValue) return;
-
-    await updateDayPlanReflection({
-      dayPlanId: dayPlanIdValue,
-      reflection,
-    });
+    await updateDayPlanReflection({ dayPlanId, reflection });
   };
 
   const calculateStatistics = (): DaySummaryStatistics => {
-    const totalTasks = workItems.length;
-    const totalMinutes = workItems.reduce((sum, item) => sum + (item.duration || 0), 0);
+    const totalTasks = workLogItems.length;
+    const totalMinutes = workLogItems.reduce((sum, item) => sum + (item.duration || 0), 0);
     
     // Group by project
     const projectMap = new Map<string, { count: number; minutes: number; name: string }>();
     let unplannedCount = 0;
 
-    workItems.forEach(item => {
+    workLogItems.forEach(item => {
       if (item.projectId === null) {
         unplannedCount++;
       } else {
@@ -172,7 +106,7 @@ export default function DaySummary() {
     if (stats.projectBreakdown.length > 0) {
       lines.push('Projects:');
       stats.projectBreakdown.forEach(proj => {
-        const projectTasks = workItems.filter(item => item.projectId === proj.projectId);
+        const projectTasks = workLogItems.filter(item => item.projectId === proj.projectId);
         projectTasks.forEach(task => {
           const duration = task.duration ? ` (${formatDuration(task.duration)})` : '';
           lines.push(`• [${proj.projectName}] ${task.description}${duration}`);
@@ -182,7 +116,7 @@ export default function DaySummary() {
     }
 
     // Unplanned tasks
-    const unplannedTasks = workItems.filter(item => item.projectId === null);
+    const unplannedTasks = workLogItems.filter(item => item.projectId === null);
     if (unplannedTasks.length > 0) {
       lines.push('Unplanned:');
       unplannedTasks.forEach(task => {
@@ -220,39 +154,19 @@ export default function DaySummary() {
   };
 
   const handleComplete = () => {
-    setIsSaving(true);
-    const stats = calculateStatistics();
-    saveDaySummary(reflection, workItems, stats);
-    clearCurrentDay();
-    router.push('/');
+    // TODO: Implement complete and close
   };
 
-  const handleCancel = () => {
-    const session = getDayPlanSession();
-    router.push(session ? '/day-work' : '/');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex items-center gap-2 text-zinc-400">
-          <div className="size-4 border-2 border-t-transparent border-zinc-400 rounded-full animate-spin" />
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (workItems.length === 0) {
+  if (workLogItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <p className="text-zinc-400 mb-4">No work logged today</p>
-        <button
-          onClick={handleCancel}
-          className="px-4 py-2 rounded-md bg-purple-500 text-white hover:bg-purple-600 transition-colors"
+        <Link
+          href="/day-work"
+          className="px-4 py-2 rounded-md text-white transition-colors"
         >
           Go Back
-        </button>
+        </Link>
       </div>
     );
   }
@@ -272,17 +186,17 @@ export default function DaySummary() {
   };
 
   return (
-    <div className="min-h-screen bg-[#141414] text-white">
+    <div className="bg-[#141414] text-white overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-10">
         {/* Header */}
         <div className="flex items-start gap-4 mb-10">
-          <button
-            onClick={handleCancel}
+          <Link
+            href="/day-work"
             className="mt-1 p-2 rounded-full hover:bg-[#252525] transition-colors"
             title="Back to focus"
           >
             <ArrowLeftIcon className="text-zinc-400 size-4" />
-          </button>
+          </Link>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-semibold">{dayName}</h1>
@@ -311,7 +225,7 @@ export default function DaySummary() {
                 <p className="text-sm text-zinc-500">What were the noteworthy things you did today?</p>
               </div>
               <div className="space-y-3">
-                {workItems.map((item) => {
+                {workLogItems.map((item) => {
                   const project = focusedProjects.find(p => p.id === item.projectId);
                   const isUnplanned = item.projectId === null;
 
@@ -387,20 +301,19 @@ export default function DaySummary() {
 
               <button
                 onClick={handleComplete}
-                disabled={isSaving}
                 className="flex-1 px-4 py-3 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaving ? 'Saving...' : 'Complete & Close'}
+                Complete & Close
               </button>
             </div>
 
             <div className="text-center">
-              <button
-                onClick={handleCancel}
+              <Link
+                href="/day-work"
                 className="text-sm text-zinc-400 hover:text-white transition-colors"
               >
                 Cancel and go back
-              </button>
+              </Link>
             </div>
           </main>
 
@@ -448,7 +361,7 @@ export default function DaySummary() {
             <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-4">
               <h3 className="text-sm font-semibold text-zinc-200 mb-3">Timeline</h3>
               <div className="space-y-3">
-                {workItems.map((item) => {
+                {workLogItems.map((item) => {
                   const project = focusedProjects.find(p => p.id === item.projectId);
                   const label = project?.name || (item.projectId === null ? 'Unplanned' : 'Unknown');
 
