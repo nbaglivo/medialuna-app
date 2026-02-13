@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, RefObject } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, MotionProps } from 'motion/react';
 import { useOnClickOutside } from 'usehooks-ts';
 import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
@@ -191,19 +191,18 @@ export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps)
           <AnimatePresence initial={false}>
             {workLogItems.map((item) => (
               <motion.div
-                layout="position"
-                key={item.id}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <UnitOfWorkRecord
-                  item={item}
-                  project={getProjectById(item.projectId)}
-                  onDelete={handleDelete}
-                />
-              </motion.div>
+                 key={item.id}
+                 initial={{ scale: 0, opacity: 0 }}
+                 animate={{ scale: 1, opacity: 1 }}
+                 exit={{ scale: 0, opacity: 0 }}
+                 transition={{ type: "spring", stiffness: 350, damping: 40 }}
+               >
+                 <UnitOfWorkRecord
+                   item={item}
+                   project={getProjectById(item.projectId)}
+                   onDelete={handleDelete}
+                 />
+               </motion.div>
             ))}
           </AnimatePresence>
         </div>
