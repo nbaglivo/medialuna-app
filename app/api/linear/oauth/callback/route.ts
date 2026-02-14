@@ -98,7 +98,7 @@ export async function GET(request: Request) {
 
     // Redirect back to preview/prod origin
     const response = NextResponse.redirect(
-      `${returnTo}/settings/integrations`
+      `${returnTo}/settings?integration=linear`
     );
 
     // Store token in secure HttpOnly cookie
