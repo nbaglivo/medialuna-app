@@ -6,3 +6,5 @@ export const UNPLANNED_REASONS = [
 ] as const;
 
 export type UnplannedReason = typeof UNPLANNED_REASONS[number];
+
+export const UNPLANNED_PROJECT_ID = '__unplanned__';

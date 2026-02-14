@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateFallbackUuid } from '@/lib/utils';
 import { type UnifiedProject } from '@/lib/task-source';
+import { UNPLANNED_PROJECT_ID } from '@/lib/unplanned-project';
 import { type WorkLogItem } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
 import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
@@ -479,5 +480,3 @@ type MentionOption = {
     issue?: LinearIssue;
     project?: UnifiedProject;
 };
-
-const UNPLANNED_PROJECT_ID = '__unplanned__';

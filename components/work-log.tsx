@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, RefObject } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useOnClickOutside } from 'usehooks-ts';
 import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
