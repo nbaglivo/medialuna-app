@@ -1,8 +1,6 @@
 import { TaskSources, type UnifiedProject } from '@/lib/task-source';
 import { ExternalLinkIcon, GitHubLogoIcon } from '@radix-ui/react-icons';
-import* as Icons from '@radix-ui/react-icons';
-import React from 'react';
-
+import ProjectIcon from './project-icon';
 
 export default function ProjectCard({ project, isSelected, onProjectToggle }: { project: UnifiedProject, isSelected: boolean, onProjectToggle: (projectId: string) => void }) {
     return (
@@ -30,7 +28,7 @@ export default function ProjectCard({ project, isSelected, onProjectToggle }: { 
   
         {/* Project icon and name */}
         <div className="flex items-start gap-2 pr-6">
-          {getIcon(project)}
+          <ProjectIcon icon={project.icon} color={project.color} />
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-white truncate">
               {project.name}
@@ -90,12 +88,6 @@ export default function ProjectCard({ project, isSelected, onProjectToggle }: { 
           )}
       </div>
     );
-}
-
-function getIcon({ icon, color }: UnifiedProject) {
-  const style = { color: color ?? '#71717a' };
-  const iconComponent = (icon && Icons[`${icon}Icon` as keyof typeof Icons]) ?? Icons.CircleIcon;
-  return <span className="text-lg flex-shrink-0 mt-0.5" style={style}>{React.createElement(iconComponent)}</span>;
 }
 
 function SourceLogo({ source }: { source: string }) {

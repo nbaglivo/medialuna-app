@@ -13,6 +13,7 @@ import {
 import { LinearIssue } from './types';
 import { RecordUnitOfWork } from './new-record-form';
 import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
+import ProjectIcon from './project-icon';
 
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
@@ -319,8 +320,11 @@ function UnitOfWorkRecord({ item, project, onDelete }: { item: WorkLogItem, proj
               )}
             </>
           ) : project ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-400">
-              {project.icon && <span>{project.icon}</span>}
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border"
+              style={{ borderColor: project.color ?? '#71717a', color: project.color ?? '#71717a' }}
+            >
+              <ProjectIcon icon={project.icon} color={project.color} />
               {project.name}
             </span>
           ) : (

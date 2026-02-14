@@ -1,4 +1,4 @@
-import { LinearClient } from "@linear/sdk";
+import { LinearClient, Project } from "@linear/sdk";
 
 export type LinearProject = {
   id: string;
@@ -30,13 +30,8 @@ export async function getUser(token: string): Promise<LinearUser> {
     return { id: viewer.id, name: viewer.name, email: viewer.email };
 }
 
-export async function getProjects(token: string): Promise<LinearProject[]> {
-    const client = new LinearClient({ accessToken: token });
-  
-    const projectsResponse = await client.projects({ first: 50 });
-    const rawProjects = projectsResponse.nodes ?? [];
-  
-    const projects: LinearProject[] = rawProjects.map((project) => ({
+function mapLinearProject(project: Project): LinearProject {
+    return {
         id: project.id,
         name: project.name,
         description: project.description ?? null,
@@ -47,9 +42,23 @@ export async function getProjects(token: string): Promise<LinearProject[]> {
         color: project.color ?? null,
         targetDate: project.targetDate ?? null,
         startDate: project.startDate ?? null,
-    }));
+    };
+}
+
+export async function getProjects(token: string): Promise<LinearProject[]> {
+    const client = new LinearClient({ accessToken: token });
   
-    return projects;
+    const projectsResponse = await client.projects({ first: 50 });
+    const rawProjects = projectsResponse.nodes ?? [];
+  
+    return rawProjects.map(mapLinearProject);
+}
+
+export async function getProjectsByView(token: string, viewId: string): Promise<LinearProject[]> {
+    const client = new LinearClient({ accessToken: token });
+    const view = await client.customView(viewId);
+    const projects = await view.projects({ first: 50 });
+    return projects.nodes.map(mapLinearProject);
 }
 
 export async function getProjectViews(token: string): Promise<LinearProjectView[]> {
@@ -62,12 +71,15 @@ export async function getProjectViews(token: string): Promise<LinearProjectView[
     
     const views = await viewsConnection.nodes;
 
+    console.log('views', views);
+
     return views.map((view) => ({
+        ...view,
         id: view.id,
         name: view.name,
         description: view.description ?? null,
         icon: view.icon ?? null,
-        color: view.color ?? null
+        color: view.color ?? null,
     }));
 }
 

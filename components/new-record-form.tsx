@@ -6,6 +6,8 @@ import { UNPLANNED_PROJECT_ID } from '@/lib/unplanned-project';
 import { type WorkLogItem } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
 import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
+import ProjectIcon from './project-icon';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 
 enum Step {
     ProvideDescription = 'provideDescription',
@@ -455,16 +457,19 @@ function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedPro
                 {projects.map(project => (
                     <button
                         key={project.id}
-                        className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-purple-500/30"
+                        className="flex gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer"
+                        style={{ borderColor: project.color ?? '#71717a' }}
                         onClick={() => onProjectSelected(project.id)}
                     >
-                        {project.name}
+                        <ProjectIcon icon={project.icon} color={project.color} />
+                        <span className="text-sm text-white">{project.name}</span>
                     </button>
                 ))}
                 <button
-                    className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-red-700/30"
+                    className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-red-700/60 flex gap-2 items-center justify-center"
                     onClick={() => onProjectSelected(UNPLANNED_PROJECT_ID)}
                 >
+                    <ExclamationTriangleIcon className="size-4" />
                     Unplanned work
                 </button>
             </div>

@@ -1,19 +1,17 @@
 "use server";
 
-import { getProjects, getProjectViews, getUser, LinearProject, LinearProjectView, LinearUser } from "@/lib/linear";
+import { getProjectsByView, getUser, LinearProject, LinearUser } from "@/lib/linear";
 import { cookies } from "next/headers";
 
 type LinearData = {
   user: LinearUser | null;
   projects: LinearProject[];
-  projectViews: LinearProjectView[];
   connected: true;
 };
 
 type NotConnectedData = {
   user: null;
   projects: [];
-  projectViews: [];
   connected: false;
 };
 
@@ -25,14 +23,14 @@ export async function getLinearData(): Promise<LinearData |  NotConnectedData> {
   const token = cookieToken;
 
   if (!token) {
-    return { user: null, projects: [], projectViews: [], connected: false };
+    return { user: null, projects: [], connected: false };
   }
 
-  const [user, projects, projectViews] = await Promise.all([
+  const [user, projects] = await Promise.all([
     getUser(token),
-    getProjects(token),
-    getProjectViews(token),
+    // For now only return the projects in the view with the id "In Focus"
+    getProjectsByView(token, "d3e45859-3847-4ed8-af51-4b712b5b519f"),
   ]);
 
-  return { user, projects, projectViews, connected: true };
+  return { user, projects, connected: true };
 }
