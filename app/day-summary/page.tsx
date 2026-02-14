@@ -1,8 +1,17 @@
+import { redirect } from 'next/navigation';
 import DaySummary from '@/components/day-summary';
-import { type WorkLogItem, getDayPlanId, getDayPlanProjectsWithSource, getDayPlanWorkLog } from '../actions/day-plan';
+import { type WorkLogItem, getOpenDayPlan, getDayPlanProjectsWithSource, getDayPlanWorkLog } from '../actions/day-plan';
 
 export default async function DaySummaryPage() {
-  const dayPlanId = await getDayPlanId();
+  // Check if there's an open day plan
+  const openDayPlan = await getOpenDayPlan();
+  
+  // If no open day plan, redirect to start a new one
+  if (!openDayPlan) {
+    redirect('/');
+  }
+
+  const dayPlanId = openDayPlan.id;
   const dayPlanWorkLog = await getDayPlanWorkLog(dayPlanId);
   const workLogItems: WorkLogItem[] = dayPlanWorkLog.map((workLogItem) => ({
     id: workLogItem.id,

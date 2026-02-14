@@ -82,6 +82,61 @@ export async function getDayPlanProjectsWithSource(dayPlanId: string): Promise<a
   });
 }
 
+export type OpenDayPlan = {
+  id: string;
+  planDate: string;
+  createdAt: string;
+};
+
+/**
+ * Gets the currently open day plan (is_open = true)
+ * Returns null if no open day plan exists
+ */
+export async function getOpenDayPlan(): Promise<OpenDayPlan | null> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('day_plans')
+    .select('id, plan_date, created_at')
+    .eq('is_open', true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    planDate: data.plan_date,
+    createdAt: data.created_at,
+  };
+}
+
+/**
+ * Closes the specified day plan by setting is_open = false
+ */
+export async function closeDayPlan(dayPlanId: string): Promise<{ ok: boolean }> {
+  const supabase = createServerSupabaseClient();
+
+  const { error } = await supabase
+    .from('day_plans')
+    .update({ is_open: false })
+    .eq('id', dayPlanId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/');
+  revalidatePath('/day-work');
+  revalidatePath('/day-summary');
+
+  return { ok: true };
+}
+
 export async function getDayPlanId(): Promise<string> {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
@@ -110,6 +165,7 @@ export async function startDayPlan({ planDate, timezone, projects }: StartDayPla
     .insert({
       plan_date: planDate,
       timezone: timezone ?? null,
+      is_open: true,
     })
     .select('id')
     .single();

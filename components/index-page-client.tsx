@@ -4,13 +4,21 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import UnifiedProjectsList from '@/components/unified-projects-list';
 import { type UnifiedProject } from '@/lib/task-source';
-import { startDayPlan } from '@/app/actions/day-plan';
+import { startDayPlan, closeDayPlan, type OpenDayPlan } from '@/app/actions/day-plan';
 
-export default function IndexPageClient({ allProjects, statusOptions }: { allProjects: UnifiedProject[], statusOptions: string[] }) {
+type IndexPageClientProps = {
+  allProjects: UnifiedProject[];
+  statusOptions: string[];
+  openDayPlan: OpenDayPlan | null;
+};
+
+export default function IndexPageClient({ allProjects, statusOptions, openDayPlan }: IndexPageClientProps) {
   const router = useRouter();
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isStarting, setIsStarting] = useState(false);
+  const [isClosingPlan, setIsClosingPlan] = useState(false);
+  const [showOpenPlanPrompt, setShowOpenPlanPrompt] = useState(!!openDayPlan);
 
   const filteredProjects =
     selectedStatus === 'All'
@@ -63,6 +71,79 @@ export default function IndexPageClient({ allProjects, statusOptions }: { allPro
       setSelectedStatus('All');
     }
   }, [selectedStatus, statusOptions]);
+
+  const handleContinueOpenPlan = () => {
+    router.push('/day-work');
+  };
+
+  const handleCloseOpenPlan = async () => {
+    if (!openDayPlan) return;
+
+    setIsClosingPlan(true);
+    try {
+      await closeDayPlan(openDayPlan.id);
+      setShowOpenPlanPrompt(false);
+    } catch (error) {
+      console.error('Failed to close day plan:', error);
+    } finally {
+      setIsClosingPlan(false);
+    }
+  };
+
+  // Show the open plan prompt if there's an active day plan
+  if (showOpenPlanPrompt && openDayPlan) {
+    const planDate = new Date(openDayPlan.planDate);
+    const formattedDate = planDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full px-4">
+        <div className="max-w-md w-full bg-[#1a1a1a] border border-[#333] rounded-xl p-8 text-center">
+          <div className="mb-6">
+            <div className="size-16 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="size-8 text-purple-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">You have an open day</h2>
+            <p className="text-zinc-400 text-sm">
+              You started a day plan on {formattedDate}. Would you like to continue working on it or close it and start fresh?
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleContinueOpenPlan}
+              className="w-full px-4 py-3 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-600 transition-colors"
+            >
+              Continue Working
+            </button>
+            <button
+              onClick={handleCloseOpenPlan}
+              disabled={isClosingPlan}
+              className="w-full px-4 py-3 rounded-lg bg-[#252525] text-zinc-300 font-medium hover:bg-[#2a2a2a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isClosingPlan ? 'Closing...' : 'Close and Start Fresh'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full px-4 md:px-8 lg:px-16 overflow-y-auto">

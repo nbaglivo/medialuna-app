@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, CheckIcon, CopyIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
-import { updateDayPlanReflection, type WorkLogItem } from '@/app/actions/day-plan';
+import { updateDayPlanReflection, closeDayPlan, type WorkLogItem } from '@/app/actions/day-plan';
 
 export type DaySummaryStatistics = {
   totalTasks: number;
@@ -19,8 +20,10 @@ export type DaySummaryStatistics = {
 };
 
 export default function DaySummary({ dayPlanId, workLogItems, focusedProjects }: { dayPlanId: string, workLogItems: WorkLogItem[], focusedProjects: UnifiedProject[] }) {
+  const router = useRouter();
   const [reflection, setReflection] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const reflectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -153,8 +156,19 @@ export default function DaySummary({ dayPlanId, workLogItems, focusedProjects }:
     }
   };
 
-  const handleComplete = () => {
-    // TODO: Implement complete and close
+  const handleComplete = async () => {
+    setIsCompleting(true);
+    try {
+      // Save the reflection one final time before closing
+      await updateDayPlanReflection({ dayPlanId, reflection });
+      // Close the day plan
+      await closeDayPlan(dayPlanId);
+      // Redirect to the home page
+      router.push('/');
+    } catch (error) {
+      console.error('Failed to complete day:', error);
+      setIsCompleting(false);
+    }
   };
 
   if (workLogItems.length === 0) {
@@ -301,9 +315,10 @@ export default function DaySummary({ dayPlanId, workLogItems, focusedProjects }:
 
               <button
                 onClick={handleComplete}
+                disabled={isCompleting}
                 className="flex-1 px-4 py-3 rounded-lg bg-purple-500 text-white font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Complete & Close
+                {isCompleting ? 'Completing...' : 'Complete & Close'}
               </button>
             </div>
 

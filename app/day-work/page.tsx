@@ -1,16 +1,25 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import WorkLog from '@/components/work-log';
 import { UnifiedProject } from '@/lib/task-source';
 import {
-  getDayPlanId,
+  getOpenDayPlan,
   getDayPlanProjectsWithSource,
   getDayPlanWorkLog,
   type WorkLogItem,
 } from '../actions/day-plan';
 
 export default async function DayWorkPage() {
-  const dayPlanId = await getDayPlanId();
+  // Check if there's an open day plan
+  const openDayPlan = await getOpenDayPlan();
+  
+  // If no open day plan, redirect to start a new one
+  if (!openDayPlan) {
+    redirect('/');
+  }
+
+  const dayPlanId = openDayPlan.id;
   const dayPlanWorkLog = await getDayPlanWorkLog(dayPlanId);
   const workLogItems: WorkLogItem[] = dayPlanWorkLog.map((workLogItem) => ({
     id: workLogItem.id,
