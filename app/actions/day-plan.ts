@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { LinearProject, normalizeLinearProject, TaskSource, TaskSources, UnifiedProject } from '@/lib/task-source';
+import { normalizeLinearProject, TaskSource, TaskSources, UnifiedProject } from '@/lib/task-source';
 import { revalidatePath } from 'next/cache';
 import { getLinearData } from './linear';
 
