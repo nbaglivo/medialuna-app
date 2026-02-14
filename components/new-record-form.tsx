@@ -215,15 +215,15 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
     return (
         <motion.div
             ref={ref}
+            layout
             layoutId="work-log-input"
-            transition={{ layout: { duration: 0.4, ease: 'easeOut', delay: step === Step.Accept ? 0.3 : 0 } }}
-
+            transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
+            style={{ borderRadius: '8px' }}
             className={`
                 flex flex-col items-center gap-3 py-2
                 border border-[#444] bg-[#1a1a1a]
-                rounded-lg
                 transition-colors       
-                fixed top-[18%] left-1/2 -translate-x-1/2 z-50 w-[600px]
+                fixed top-[10%] left-1/2 -translate-x-1/2 z-50 w-[600px]
             `}
         >
             {/* Main Section */}
@@ -267,9 +267,7 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                         {step === Step.ProvideProject && (
                             <ProjectSelector projects={focusedProjects} onProjectSelected={manuallySelectProject} />
                         )}
-                    </AnimatePresence>
 
-                    <AnimatePresence>
                         {step === Step.Accept && (
                             <AcceptRecord onAddTask={handleAddTask} />
                         )}
@@ -314,9 +312,10 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
 function AcceptRecord({ onAddTask }: { onAddTask: () => void }) {
     return (
         <motion.div
+            layout
             className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ filter: 'blur(10px)', opacity: 0 }}
+            animate={{ filter: 'blur(0px)', opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
         >

@@ -215,17 +215,21 @@ export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps)
 
       {/* Record New Work Item Trigger */}
       <div className="h-12 mt-4">
+        <AnimatePresence mode="popLayout" initial={false}>
         {
           !isRecordUnitOfWorkOpen && (
             <motion.div
               layout="position"
               layoutId="work-log-input"
+              transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
               onClick={() => setIsRecordUnitOfWorkOpen(true)}
-              className="border border-[#444] bg-[#1a1a1a] rounded-lg p-2 text-zinc-500"
+              className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500"
+              style={{ borderRadius: '8px' }}
             >
               <motion.span>{WORK_LOG_RECORD_PLACEHOLDER}</motion.span>
             </motion.div>
         )}
+        </AnimatePresence>
       </div>
     </div>
   );
