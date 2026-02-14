@@ -1,32 +1,26 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const LINEAR_OAUTH_URL = "https://linear.app/oauth/authorize";
-const STATE_COOKIE = "linear_oauth_state";
+export async function GET(request: Request) {
+  const clientId = process.env.LINEAR_CLIENT_ID!;
+  const redirectUri = process.env.LINEAR_REDIRECT_URI!;
 
-export async function GET() {
-  const clientId = process.env.LINEAR_CLIENT_ID;
-  const redirectUri = process.env.LINEAR_REDIRECT_URI;
+  const host = request.headers.get("host");
 
-  if (!clientId || !redirectUri) {
-    return NextResponse.json(
-      { error: "Missing LINEAR_CLIENT_ID or LINEAR_REDIRECT_URI." },
-      { status: 500 }
-    );
+  if (!host) {
+    return NextResponse.json({ error: "Missing host header" }, { status: 400 });
   }
 
-  const state = crypto.randomUUID();
-  const cookieStore = await cookies();
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
 
-  cookieStore.set(STATE_COOKIE, state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 10
-  });
+  const statePayload = {
+    id: crypto.randomUUID(),
+    returnTo: origin
+  };
 
-  const url = new URL(LINEAR_OAUTH_URL);
+  const state = Buffer.from(JSON.stringify(statePayload)).toString("base64url");
+
+  const url = new URL("https://linear.app/oauth/authorize");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri);
