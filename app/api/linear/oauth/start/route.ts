@@ -4,7 +4,14 @@ export async function GET(request: Request) {
   const clientId = process.env.LINEAR_CLIENT_ID!;
   const redirectUri = process.env.LINEAR_REDIRECT_URI!;
 
-  const origin = request.headers.get("origin") ?? `https://${process.env.VERCEL_URL}`;
+  const host = request.headers.get("host");
+
+  if (!host) {
+    return NextResponse.json({ error: "Missing host header" }, { status: 400 });
+  }
+
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
 
   const statePayload = {
     id: crypto.randomUUID(),
