@@ -17,6 +17,8 @@ export async function GET(request: Request) {
       );
     }
 
+    console.log("code");
+
     // Decode state (contains returnTo)
     let decodedState: { id: string; returnTo: string };
 
