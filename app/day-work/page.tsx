@@ -69,6 +69,7 @@ export default async function DayWorkPage() {
               <WorkLog
                 focusedProjects={focusedProjects}
                 workLogItems={workLogItems}
+                openDayPlanId={dayPlanId}
               />
             </div>
 

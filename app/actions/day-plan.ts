@@ -194,45 +194,6 @@ export async function startDayPlan({ planDate, timezone, projects }: StartDayPla
   return { dayPlanId: dayPlan.id };
 }
 
-type SyncProjectsInput = {
-  dayPlanId: string;
-  projects: DayPlanProjectInput[];
-};
-
-export async function syncDayPlanProjects({ dayPlanId, projects }: SyncProjectsInput) {
-  const supabase = createServerSupabaseClient();
-
-  const { error: deleteError } = await supabase
-    .from('day_plan_projects')
-    .delete()
-    .eq('day_plan_id', dayPlanId);
-
-  if (deleteError) {
-    throw new Error(deleteError.message);
-  }
-
-  if (projects.length === 0) {
-    return { ok: true };
-  }
-
-  const { error: insertError } = await supabase
-    .from('day_plan_projects')
-    .insert(
-      projects.map(project => ({
-        day_plan_id: dayPlanId,
-        project_id: project.projectId,
-        project_source: project.projectSource,
-        project_name: project.projectName ?? null,
-      }))
-    );
-
-  if (insertError) {
-    throw new Error(insertError.message);
-  }
-
-  return { ok: true };
-}
-
 type UpsertWorkLogItemInput = {
   dayPlanId: string;
   item: WorkLogItemInput;

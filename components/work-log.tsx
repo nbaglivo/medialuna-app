@@ -7,10 +7,8 @@ import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
-  syncDayPlanProjects,
   upsertWorkLogItem,
   deleteWorkLogItem,
-  getDayPlanId,
 } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
 import { RecordUnitOfWork } from './new-record-form';
@@ -19,13 +17,14 @@ import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
 type WorkLogProps = {
   focusedProjects: UnifiedProject[];
   workLogItems: WorkLogItem[];
+  openDayPlanId: string;
 };
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps) {
+export default function WorkLog({ focusedProjects, workLogItems, openDayPlanId }: WorkLogProps) {
   const recordUnitOfWorkRef = useRef<HTMLDivElement>(null);
   useOnClickOutside(recordUnitOfWorkRef as RefObject<HTMLElement>, () => {
     setIsRecordUnitOfWorkOpen(false);
@@ -42,49 +41,24 @@ export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps)
     }
   }, [focusedProjects]);
 
-  useEffect(() => {
-    const syncProjects = async () => {
-      if (focusedProjects.length === 0) return;
-
-      const dayPlanIdValue = await getDayPlanId();
-      if (!dayPlanIdValue) return;
-
-      await syncDayPlanProjects({
-        dayPlanId: dayPlanIdValue,
-        projects: focusedProjects.map(project => ({
-          projectId: project.id,
-          projectSource: project.source,
-          projectName: project.name,
-        })),
-      });
-    };
-
-    syncProjects().catch(error => {
-      console.error('Failed to sync day plan projects:', error);
-    });
-  }, [focusedProjects]);
-
   const onWorkLogAdded = async (newItem: WorkLogItem) => {
-    const dayPlanIdValue = await getDayPlanId();
-    if (dayPlanIdValue) {
-      const projectSource = newItem.projectId
-        ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
-        : null;
+    const projectSource = newItem.projectId
+      ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
+      : null;
 
-      await upsertWorkLogItem({
-        dayPlanId: dayPlanIdValue,
-        item: {
-          id: newItem.id,
-          description: newItem.description,
-          timestamp: newItem.timestamp,
-          projectId: newItem.projectId,
-          projectSource,
-          unplannedReason: newItem.unplannedReason,
-          mentionedIssues: newItem.mentionedIssues,
-          durationMinutes: newItem.duration ?? null,
-        },
-      });
-    }
+    await upsertWorkLogItem({
+      dayPlanId: openDayPlanId,
+      item: {
+        id: newItem.id,
+        description: newItem.description,
+        timestamp: newItem.timestamp,
+        projectId: newItem.projectId,
+        projectSource,
+        unplannedReason: newItem.unplannedReason,
+        mentionedIssues: newItem.mentionedIssues,
+        durationMinutes: newItem.duration ?? null,
+      },
+    });
   };
 
   const loadLinearIssues = async () => {
@@ -139,10 +113,7 @@ export default function WorkLog({ focusedProjects, workLogItems }: WorkLogProps)
 
   const handleDelete = async (id: string) => {
     try {
-      const dayPlanIdValue = await getDayPlanId();
-      if (dayPlanIdValue) {
-        await deleteWorkLogItem({ dayPlanId: dayPlanIdValue, itemId: id });
-      }
+      await deleteWorkLogItem({ dayPlanId: openDayPlanId, itemId: id });
     } catch (error) {
       console.error('Failed to delete work log item:', error);
     }
