@@ -24,16 +24,17 @@ export type LinearData = {
     projects: LinearProject[];
 };
 
-export async function getDataFromLinear(token: string): Promise<LinearData> {
+export async function getUser(token: string): Promise<LinearUser> {
     const client = new LinearClient({ accessToken: token });
-  
     const viewer = await client.viewer;
-    const user = { id: viewer.id, name: viewer.name, email: viewer.email };
+    return { id: viewer.id, name: viewer.name, email: viewer.email };
+}
+
+export async function getProjects(token: string): Promise<LinearProject[]> {
+    const client = new LinearClient({ accessToken: token });
   
     const projectsResponse = await client.projects({ first: 50 });
     const rawProjects = projectsResponse.nodes ?? [];
-
-    console.log('rawProjects', rawProjects);
   
     const projects: LinearProject[] = rawProjects.map((project) => ({
         id: project.id,
@@ -48,5 +49,32 @@ export async function getDataFromLinear(token: string): Promise<LinearData> {
         startDate: project.startDate ?? null,
     }));
   
-    return { user, projects };
+    return projects;
 }
+
+export async function getProjectViews(token: string): Promise<LinearProjectView[]> {
+    const client = new LinearClient({ accessToken: token });
+    const viewsConnection = await client.customViews({
+        filter: {
+            modelName: { eq: "Project" }
+        }
+    });
+    
+    const views = await viewsConnection.nodes;
+
+    return views.map((view) => ({
+        id: view.id,
+        name: view.name,
+        description: view.description ?? null,
+        icon: view.icon ?? null,
+        color: view.color ?? null
+    }));
+}
+
+export type LinearProjectView = {
+    id: string;
+    name: string;
+    description?: string | null;
+    icon?: string | null;
+    color?: string | null;
+};
