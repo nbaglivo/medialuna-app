@@ -299,7 +299,23 @@ function CurrentFocusItem({ workLogItem, project }: { workLogItem: WorkLogItem, 
         </div>
 
         <div className="text-sm text-zinc-400 hover:text-zinc-300 cursor-pointer">
-            See update history ({updates.length})
+            See update history
+            <motion.span
+                className="text-zinc-500"
+                key={`update-count-${updates.length}`}
+                initial={{ scale: 1 }}
+                animate={{
+                    scale: [1, 1.1, 1.05, 1.1, 1],
+                    rotate: [0, -10, 10, -8, 8, 0],
+                }}
+                transition={{
+                    duration: 0.6,
+                    ease: "easeInOut",
+                }}
+                style={{ display: "inline-block" }}
+            >
+                ({updates.length})
+            </motion.span>
         </div>
 
         <div>
