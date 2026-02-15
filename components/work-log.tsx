@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, RefObject } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useOnClickOutside } from 'usehooks-ts';
-import { TrashIcon, CheckIcon, VercelLogoIcon } from '@radix-ui/react-icons';
+import { TrashIcon, CheckIcon, VercelLogoIcon, PlayIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
@@ -360,8 +360,3 @@ function UnitOfWorkRecord({ item, project, onDelete }: { item: WorkLogItem, proj
   );
 }
 
-function PlayIcon() {
-  return (
-    <VercelLogoIcon className="w-4 h-4 rotate-90" />
-  );
-}
