@@ -9,7 +9,8 @@ import {
   getDayPlanWorkLog,
   type WorkLogItem,
 } from '../actions/day-plan';
-import CurrentFocusItem from '@/components/current-focus-item';
+import FocusWindow from '@/components/current-focus-item';
+import { getLinearData } from '../actions/linear';
 
 export default async function DayWorkPage() {
   // Check if there's an open day plan
@@ -34,6 +35,10 @@ export default async function DayWorkPage() {
   }));
 
   const focusedProjects = await getDayPlanProjectsWithSource(dayPlanId);
+
+  const linearData = await getLinearData();
+
+  const linearIssues = linearData.connected ? linearData.issues : [];
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#141414]">
@@ -65,10 +70,10 @@ export default async function DayWorkPage() {
         ) : (
           <div className="flex h-full flex-col gap-4 md:flex-row">
 
-            <CurrentFocusItem
-              workLogItem={workLogItems[workLogItems.length - 1]}
+            <FocusWindow
+              initialWorkLogItem={null}
               focusedProjects={focusedProjects}
-              linearIssues={[]}
+              linearIssues={linearIssues}
             />
 
             {/* Work Log Section */}

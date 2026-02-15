@@ -1,18 +1,18 @@
 'use client';
-import './current-focus-item.css';
 import { useState, useEffect, useRef } from 'react';
-import { WorkLogItem } from "@/app/actions/day-plan";
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import * as Select from '@radix-ui/react-select';
+import { WorkLogItem } from "@/app/actions/day-plan";
 import { UnifiedProject } from '@/lib/task-source';
 import ProjectIcon from './project-icon';
-import Link from 'next/link';
 import { MentionDropdown, MentionOption, ProjectSelector } from './new-record-form';
 import { START_FOCUS_PLACEHOLDER } from './translations';
 import { LinearIssue } from './types';
+import './current-focus-item.css';
 
-export default function FocusWindow({ workLogItem, focusedProjects, linearIssues }: { workLogItem: WorkLogItem, focusedProjects: UnifiedProject[], linearIssues: LinearIssue[] }) {
-    const [workInFocus, setWorkInFocus] = useState<WorkLogItem | null>(null);
+export default function FocusWindow({ initialWorkLogItem, focusedProjects, linearIssues }: { initialWorkLogItem: WorkLogItem | null, focusedProjects: UnifiedProject[], linearIssues: LinearIssue[] }) {
+    const [workInFocus, setWorkInFocus] = useState<WorkLogItem | null>(initialWorkLogItem);
     const [isAddingFocus, setIsAddingFocus] = useState(false);
     
   return (

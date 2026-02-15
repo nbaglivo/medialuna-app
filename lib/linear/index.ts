@@ -1,4 +1,4 @@
-import { LinearClient, Project } from "@linear/sdk";
+import { Issue, LinearClient, Project } from "@linear/sdk";
 
 export type LinearProject = {
   id: string;
@@ -83,6 +83,16 @@ export async function getProjectViews(token: string): Promise<LinearProjectView[
     }));
 }
 
+export async function getIssuesByProjects(token: string, projectIds: string[]): Promise<LinearIssue[]> {
+    const client = new LinearClient({ accessToken: token });
+    const issues = await client.issues({
+        filter: {
+            project: { id: { in: projectIds } }
+        }
+    });
+    return issues.nodes.map(mapLinearIssue);
+}
+
 export type LinearProjectView = {
     id: string;
     name: string;
@@ -90,3 +100,27 @@ export type LinearProjectView = {
     icon?: string | null;
     color?: string | null;
 };
+
+export type LinearIssue = {
+    id: string;
+    identifier: string;
+    title: string;
+    url: string;
+    priority?: number | null;
+    estimate?: number | null;
+    state?: {
+      name: string;
+    } | null;
+    project?: {
+      name: string;
+    } | null;
+};
+
+function mapLinearIssue(issue: Issue): LinearIssue {
+    return {
+        id: issue.id,
+        identifier: issue.identifier,
+        title: issue.title,
+        url: issue.url,
+    };
+}

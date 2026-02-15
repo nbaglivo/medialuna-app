@@ -1,17 +1,26 @@
 "use server";
 
-import { getProjectsByView, getUser, LinearProject, LinearUser } from "@/lib/linear";
+import {
+  getProjectsByView,
+  getUser,
+  LinearProject,
+  LinearUser,
+  LinearIssue,
+  getIssuesByProjects,
+} from "@/lib/linear";
 import { cookies } from "next/headers";
 
 type LinearData = {
   user: LinearUser | null;
   projects: LinearProject[];
+  issues: LinearIssue[];
   connected: true;
 };
 
 type NotConnectedData = {
   user: null;
   projects: [];
+  issues: [];
   connected: false;
 };
 
@@ -23,7 +32,7 @@ export async function getLinearData(): Promise<LinearData |  NotConnectedData> {
   const token = cookieToken;
 
   if (!token) {
-    return { user: null, projects: [], connected: false };
+    return { user: null, projects: [], issues: [], connected: false };
   }
 
   const [user, projects] = await Promise.all([
@@ -32,5 +41,7 @@ export async function getLinearData(): Promise<LinearData |  NotConnectedData> {
     getProjectsByView(token, "d3e45859-3847-4ed8-af51-4b712b5b519f"),
   ]);
 
-  return { user, projects, connected: true };
+  const issues = await getIssuesByProjects(token, projects.map(project => project.id));
+
+  return { user, projects, issues, connected: true };
 }
