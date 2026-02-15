@@ -1,15 +1,272 @@
 'use client';
 import './current-focus-item.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { WorkLogItem } from "@/app/actions/day-plan";
 import { motion, AnimatePresence } from 'motion/react';
-import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 import * as Select from '@radix-ui/react-select';
 import { UnifiedProject } from '@/lib/task-source';
 import ProjectIcon from './project-icon';
 import Link from 'next/link';
+import { MentionDropdown, MentionOption, RecordUnitOfWork } from './new-record-form';
+import { START_FOCUS_PLACEHOLDER } from './translations';
+import { LinearIssue } from './types';
 
-export default function CurrentFocusItem({ workLogItem, project }: { workLogItem: WorkLogItem, project: UnifiedProject }) {
+export default function FocusWindow({ workLogItem, focusedProjects, linearIssues }: { workLogItem: WorkLogItem, focusedProjects: UnifiedProject[], linearIssues: LinearIssue[] }) {
+    const [workInFocus, setWorkInFocus] = useState<WorkLogItem | null>(null);
+    const [isRecordUnitOfWorkOpen, setIsRecordUnitOfWorkOpen] = useState(false);
+    
+  return (
+    <div className="flex flex-col gap-4">
+    {workInFocus ? (
+        <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects[0]} />
+    ) : (
+        <div className="flex flex-col mt-8 gap-8">
+
+            <AnimatePresence mode="popLayout" initial={false}>
+                {isRecordUnitOfWorkOpen && (
+                    <AddFocusTaskForm
+                        focusedProjects={focusedProjects}
+                        linearIssues={linearIssues}
+                        onAddFocusTask={(focusTask) => setWorkInFocus(focusTask)}
+                    />
+                )}
+            </AnimatePresence>
+      
+            {/* Start Focus Trigger */}
+            <div className="items-center justify-center flex">
+                <AnimatePresence mode="popLayout" initial={false}>
+                    {!isRecordUnitOfWorkOpen && (
+                        <motion.button
+                            layout="position"
+                            layoutId="work-log-input"
+                            transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
+                            onClick={() => setIsRecordUnitOfWorkOpen(true)}
+                            className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 cursor-pointer"
+                            style={{ borderRadius: '8px' }}
+                        >
+                        <motion.span>{START_FOCUS_PLACEHOLDER}</motion.span>
+                        </motion.button>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    )}
+    </div>
+  )
+}
+
+enum AddFocusTaskStep {
+    ProvideDescription = 'provideDescription',
+    ProvideProject = 'provideProject'
+}
+
+function AddFocusTaskForm({ focusedProjects, linearIssues, onAddFocusTask }: { focusedProjects: UnifiedProject[], linearIssues: LinearIssue[], onAddFocusTask: (focusTask: WorkLogItem) => void }) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [newTaskDescription, setNewTaskDescription] = useState('');
+    const [step, setStep] = useState<AddFocusTaskStep>(AddFocusTaskStep.ProvideDescription);
+    const [mentionQuery, setMentionQuery] = useState('');
+    const [mentionStartPos, setMentionStartPos] = useState(0);
+    const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+    const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+    const [mentionedIssues, setMentionedIssues] = useState<Record<string, string>>({});
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        const cursorPos = e.target.selectionStart || 0;
+
+        setNewTaskDescription(value);
+
+        // Check for @ mention trigger
+        const textBeforeCursor = value.substring(0, cursorPos);
+        const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+
+        if (lastAtSymbol !== -1) {
+            // Check if there's a space or beginning of string before @
+            const charBeforeAt = lastAtSymbol > 0 ? textBeforeCursor[lastAtSymbol - 1] : ' ';
+            const isValidMention = charBeforeAt === ' ' || lastAtSymbol === 0;
+
+            if (isValidMention) {
+                const query = textBeforeCursor.substring(lastAtSymbol + 1);
+                // Only show dropdown if there's no space after @ (mention is still being typed)
+                const hasSpaceAfter = query.includes(' ');
+
+                if (!hasSpaceAfter) {
+                    setMentionQuery(query.toLowerCase());
+                    setMentionStartPos(lastAtSymbol);
+                    setShowMentionDropdown(true);
+                    setSelectedMentionIndex(0);
+                    return;
+                }
+            }
+        }
+
+        setShowMentionDropdown(false);
+    };
+
+    const selectMention = (mention: MentionOption) => {
+        const beforeMention = newTaskDescription.substring(0, mentionStartPos);
+        const afterMention = newTaskDescription.substring(mentionStartPos + mentionQuery.length + 1);
+        const mentionLabel = mention.label.trim();
+        const newText = `${beforeMention}@${mentionLabel} ${afterMention}`;
+
+        setNewTaskDescription(newText);
+        setShowMentionDropdown(false);
+        setMentionQuery('');
+
+        // Store the URL for linking later
+        setMentionedIssues(prev => ({
+            ...prev,
+            [mentionLabel]: mention.url
+        }));
+
+        if (mention.type === 'project' && mention.project) {
+            setSelectedProjectId(mention.project.id);
+        } else if (mention.type === 'issue') {
+            // Auto-select project: try issue's project first, otherwise select first focused project
+            if (mention.issue?.project?.name) {
+                const project = focusedProjects.find(
+                    p => p.name.toLowerCase() === mention.issue?.project?.name?.toLowerCase()
+                );
+                if (project) {
+                    setSelectedProjectId(project.id);
+                }
+            } else if (focusedProjects.length > 0 && !selectedProjectId) {
+                // Auto-select first focused project if no project is selected yet
+                setSelectedProjectId(focusedProjects[0].id);
+            }
+        }
+    };
+
+    function getFilteredMentions(): MentionOption[] {
+        const normalizedQuery = mentionQuery.trim().toLowerCase();
+        const issues = linearIssues
+            .filter(issue => {
+                const searchStr = `${issue.identifier} ${issue.title}`.toLowerCase();
+                return searchStr.includes(normalizedQuery);
+            })
+            .map(issue => ({
+                type: 'issue' as const,
+                label: issue.identifier,
+                url: issue.url,
+                issue,
+            }));
+
+        const projects = focusedProjects
+            .filter(project => project.name.toLowerCase().includes(normalizedQuery))
+            .map(project => ({
+                type: 'project' as const,
+                label: project.name,
+                url: project.url,
+                project,
+            }));
+
+        return [...issues, ...projects];
+    }
+
+    function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            onAddFocusTask({
+                description: newTaskDescription,
+                projectId: selectedProjectId,
+                mentionedIssues: Object.keys(mentionedIssues).length > 0 ? mentionedIssues : undefined,
+                duration: undefined,
+                timestamp: Date.now(),
+                id: crypto.randomUUID(),
+            });
+        }
+    }
+
+    return (
+        <motion.div
+            layout
+            layoutId="work-log-input"
+            transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
+            className={`
+                relative
+                flex flex-col items-center gap-3 py-2
+                transition-colors
+                px-4
+            `}
+        >
+            {/* Main Section */}
+            <div className={`w-full h-full grid place-items-center`}>
+                <motion.input
+                    ref={inputRef}
+                    id="work-log-input"
+                    autoFocus={true}
+                    autoComplete='off'
+                    value={newTaskDescription}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder={START_FOCUS_PLACEHOLDER}
+                    style={{ gridArea: '1 / 1', borderRadius: '8px' }}
+                    className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 flex-1 w-full h-full bg-transparent text-white placeholder-zinc-500 outline-none z-10"
+                />
+
+                <div
+                    style={{ gridArea: '1 / 1' }}
+                    className={
+                        `w-full rounded-md flex flex-col gap-4 ${step !== AddFocusTaskStep.ProvideDescription ? 'justify-between items-center' : 'opacity-0'}`
+                    }
+                >
+                    <motion.span
+                        layout="position"
+                        transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
+                        initial={false}
+                        className={
+                            ` rounded-md ${step !== AddFocusTaskStep.ProvideDescription ? 'translate-x-0' : 'opacity-0'}`
+                        }
+                    >
+                        <span
+                            className="bg-[#252525] px-1.5 py-0.5 rounded-sm"
+                        >
+                            {newTaskDescription}
+                        </span>
+                    </motion.span>
+
+                    <AnimatePresence>
+                        {step === AddFocusTaskStep.ProvideProject && (
+                            <div>Provide Project</div>
+                            // <ProjectSelector projects={focusedProjects} onProjectSelected={manuallySelectProject} />
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+
+            <div className="relative w-full">
+                <AnimatePresence>
+                    {/* @ Mention Dropdown */}
+                    {showMentionDropdown && (
+                        <div className="absolute top-0 left-0 w-full mt-1 py-2 px-2 border-t-1 border-[#333] bg-[#1a1a1a] shadow-lg">
+                            <MentionDropdown
+                                selectedMentionIndex={selectedMentionIndex}
+                                onSelectMention={setSelectedMentionIndex}
+                                onPickMention={selectMention}
+                                mentionOptions={getFilteredMentions()}
+                                mentionQuery={mentionQuery}
+                            />
+                        </div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            <AnimatePresence>
+                {!showMentionDropdown && step === AddFocusTaskStep.ProvideDescription && (
+                    <div className="w-full mt-1 py-2">
+                        <div className="text-sm text-zinc-500 flex items-center gap-1">
+                            <span className="font-mono text-[10px] bg-zinc-500/10 border border-zinc-500 px-2 py-0.5 rounded-sm">Tip</span> type <span className="font-mono text-purple-500 px-1 py-0.5 rounded-sm">@</span> to mention issues or projects
+                        </div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+}
+
+
+function CurrentFocusItem({ workLogItem, project }: { workLogItem: WorkLogItem, project: UnifiedProject }) {
   const [isTracking, setIsTracking] = useState(false);
   const [isWritingUpdate, setIsWritingUpdate] = useState(false);
   const [updates, setUpdates] = useState<{ text: string, type: typeof UPDATE_TYPES[number] }[]>([]);
@@ -35,29 +292,8 @@ export default function CurrentFocusItem({ workLogItem, project }: { workLogItem
             </div>
             <RunningTimer isRunning={isTracking} />
         </div>
-        
-        { /* Actions */ }
-        {/* <div className="flex flex-row items-center justify-center gap-2">
-            <button
-                className="flex px-1.5 text-center rounded-md text-purple-400 hover:bg-purple-500/10 transition-colors group-hover:opacity-100 border border-purple-400"
-                title="Start tracking task time"
-            >
-                <AnimatePresence initial={false} mode="popLayout">
-                    <motion.button
-                        key={isTracking ? 'pause' : 'play'}
-                        initial={{ opacity: 0, filter: 'blur(10px)' }}
-                        animate={{ opacity: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, filter: 'blur(10px)' }}
-                        transition={{ type: 'spring', bounce: 0, duration: 1 }}
-                        onClick={() => setIsTracking(!isTracking)}
-                    >
-                        { isTracking ? <PauseIcon className="size-8" /> : <PlayIcon className="size-8" /> }
-                    </motion.button>
-                </AnimatePresence>
-            </button>
-        </div> */}
 
-        <div className="text-sm text-zinc-400 hover:text-zinc-300 cursor-pointer" onClick={() => setIsShowingUpdates(!isShowingUpdates)}>
+        <div className="text-sm text-zinc-400 hover:text-zinc-300 cursor-pointer">
             See update history ({updates.length})
         </div>
 
