@@ -7,7 +7,7 @@ import * as Select from '@radix-ui/react-select';
 import { UnifiedProject } from '@/lib/task-source';
 import ProjectIcon from './project-icon';
 import Link from 'next/link';
-import { MentionDropdown, MentionOption, RecordUnitOfWork } from './new-record-form';
+import { MentionDropdown, MentionOption } from './new-record-form';
 import { START_FOCUS_PLACEHOLDER } from './translations';
 import { LinearIssue } from './types';
 
@@ -16,41 +16,46 @@ export default function FocusWindow({ workLogItem, focusedProjects, linearIssues
     const [isRecordUnitOfWorkOpen, setIsRecordUnitOfWorkOpen] = useState(false);
     
   return (
-    <div className="flex flex-col gap-4">
-    {workInFocus ? (
-        <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects[0]} />
-    ) : (
-        <div className="flex flex-col mt-8 gap-8">
+    <div className="flex min-h-0 flex-[1.5] bg-[#171717] flex-col p-4">
+        <h2 className="font-semibold text-zinc-400 mb-2">
+            {workInFocus ? 'Currently Focusing On' : 'Idle'}
+        </h2>
+        <div className="flex flex-col gap-4">
+            {workInFocus ? (
+                <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects[0]} />
+            ) : (
+                <div className="flex flex-col mt-8 gap-8">
 
-            <AnimatePresence mode="popLayout" initial={false}>
-                {isRecordUnitOfWorkOpen && (
-                    <AddFocusTaskForm
-                        focusedProjects={focusedProjects}
-                        linearIssues={linearIssues}
-                        onAddFocusTask={(focusTask) => setWorkInFocus(focusTask)}
-                    />
-                )}
-            </AnimatePresence>
-      
-            {/* Start Focus Trigger */}
-            <div className="items-center justify-center flex">
-                <AnimatePresence mode="popLayout" initial={false}>
-                    {!isRecordUnitOfWorkOpen && (
-                        <motion.button
-                            layout="position"
-                            layoutId="work-log-input"
-                            transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
-                            onClick={() => setIsRecordUnitOfWorkOpen(true)}
-                            className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 cursor-pointer"
-                            style={{ borderRadius: '8px' }}
-                        >
-                        <motion.span>{START_FOCUS_PLACEHOLDER}</motion.span>
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-            </div>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        {isRecordUnitOfWorkOpen && (
+                            <AddFocusTaskForm
+                                focusedProjects={focusedProjects}
+                                linearIssues={linearIssues}
+                                onAddFocusTask={(focusTask) => setWorkInFocus(focusTask)}
+                            />
+                        )}
+                    </AnimatePresence>
+            
+                    {/* Start Focus Trigger */}
+                    <div className="items-center justify-center flex">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                            {!isRecordUnitOfWorkOpen && (
+                                <motion.button
+                                    layout="position"
+                                    layoutId="work-log-input"
+                                    transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
+                                    onClick={() => setIsRecordUnitOfWorkOpen(true)}
+                                    className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 cursor-pointer"
+                                    style={{ borderRadius: '8px' }}
+                                >
+                                <motion.span>{START_FOCUS_PLACEHOLDER}</motion.span>
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            )}
         </div>
-    )}
     </div>
   )
 }

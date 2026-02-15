@@ -44,7 +44,7 @@ export default async function DayWorkPage() {
             <div>
               <div className="flex items-center gap-3">
                 <Link
-                  href="/?mode=projects"
+                  href="/"
                   className="p-2 rounded-full hover:bg-[#252525] transition-colors"
                   title="Back to all projects"
                 >
@@ -65,14 +65,11 @@ export default async function DayWorkPage() {
         ) : (
           <div className="flex h-full flex-col gap-4 md:flex-row">
 
-            <div className="flex min-h-0 flex-[1.5] bg-[#171717] flex-col p-4">
-              <h2 className="font-semibold text-zinc-400 mb-2">Currently Focusing On</h2>
-              <CurrentFocusItem
-                workLogItem={workLogItems[workLogItems.length - 1]}
-                focusedProjects={focusedProjects}
-                linearIssues={[]}
-              />
-            </div>
+            <CurrentFocusItem
+              workLogItem={workLogItems[workLogItems.length - 1]}
+              focusedProjects={focusedProjects}
+              linearIssues={[]}
+            />
 
             {/* Work Log Section */}
             <div className="flex min-h-0 flex-[1.5] bg-[#171717] flex-col p-4">
