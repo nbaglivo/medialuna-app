@@ -421,7 +421,8 @@ export function ProjectSelector({ projects, onProjectSelected }: { projects: Uni
             <motion.div className="flex flex-wrap gap-2">
                 {projects.map(project => (
                     <motion.button
-                        layoutId="project-name"
+                        layout="position"
+                        layoutId={`project-name-${project.id}`}
                         key={project.id}
                         style={{ color: project.color ?? '#71717a' }}
                         className="flex gap-2 px-3 py-1.5 text-xs transition-colors cursor-pointer"

@@ -21,47 +21,54 @@ export default function FocusWindow({ workLogItem, focusedProjects, linearIssues
             {workInFocus ? 'Currently Focusing On' : 'Idle'}
         </h2>
         <div className="flex flex-col gap-4">
-            {workInFocus ? (
-                workInFocus && workInFocus.projectId ? (
-                    <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects.find(p => p.id === workInFocus.projectId)!} />
+            <AnimatePresence mode="popLayout" initial={false}>
+                {workInFocus ? (
+                    workInFocus && workInFocus.projectId ? (
+                        <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects.find(p => p.id === workInFocus.projectId)!} />
+                    ) : (
+                        <div>
+                            <motion.h3
+                                layoutId="new-task-description"
+                                className="text-lg font-semibold"
+                            >
+                                {workInFocus.description}
+                            </motion.h3>
+                            <ProjectSelector projects={focusedProjects} onProjectSelected={(projectId) => setWorkInFocus({ ...workInFocus, projectId })} />
+                        </div>
+                    )
                 ) : (
-                    <AnimatePresence mode="popLayout" initial={false}>
-                        <motion.div layoutId="new-task-description">{workInFocus.description}</motion.div>
-                        <ProjectSelector projects={focusedProjects} onProjectSelected={(projectId) => setWorkInFocus({ ...workInFocus, projectId })} />
-                    </AnimatePresence>
-                )
-            ) : (
-                <div className="flex flex-col mt-8 gap-8">
+                    <div className="flex flex-col mt-8 gap-8">
 
-                    <AnimatePresence mode="popLayout" initial={false}>
-                        {isAddingFocus && (
-                            <AddFocusTaskForm
-                                focusedProjects={focusedProjects}
-                                linearIssues={linearIssues}
-                                onAddFocusTask={(focusTask) => setWorkInFocus(focusTask)}
-                            />
-                        )}
-                    </AnimatePresence>
-            
-                    {/* Start Focus Trigger */}
-                    <div className="items-center justify-center flex">
                         <AnimatePresence mode="popLayout" initial={false}>
-                            {!isAddingFocus && (
-                                <motion.button
-                                    layout="position"
-                                    layoutId="work-log-input"
-                                    transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
-                                    onClick={() => setIsAddingFocus(true)}
-                                    className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 cursor-pointer"
-                                    style={{ borderRadius: '8px' }}
-                                >
-                                <motion.span>{START_FOCUS_PLACEHOLDER}</motion.span>
-                                </motion.button>
+                            {isAddingFocus && (
+                                <AddFocusTaskForm
+                                    focusedProjects={focusedProjects}
+                                    linearIssues={linearIssues}
+                                    onAddFocusTask={(focusTask) => setWorkInFocus(focusTask)}
+                                />
                             )}
                         </AnimatePresence>
+                
+                        {/* Start Focus Trigger */}
+                        <div className="items-center justify-center flex">
+                            <AnimatePresence mode="popLayout" initial={false}>
+                                {!isAddingFocus && (
+                                    <motion.button
+                                        layout="position"
+                                        layoutId="work-log-input"
+                                        transition={{ layout: { type: 'spring', stiffness: 350, damping: 40, duration: 3 } }}
+                                        onClick={() => setIsAddingFocus(true)}
+                                        className="border border-[#444] bg-[#1a1a1a] p-2 text-zinc-500 cursor-pointer"
+                                        style={{ borderRadius: '8px' }}
+                                    >
+                                    <motion.span>{START_FOCUS_PLACEHOLDER}</motion.span>
+                                    </motion.button>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
         </div>
     </div>
   )
@@ -436,7 +443,8 @@ function UpdateTypeSelector() {
 function ProjectName({ project }: { project: UnifiedProject }) {
   return (
     <motion.div
-        layoutId="project-name"
+        layout="position"
+        layoutId={`project-name-${project.id}`}
         transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
         initial={false}
     >
