@@ -352,8 +352,7 @@ export function MentionDropdown({
                                 onSelectMention(index);
                                 onPickMention(mention);
                             }}
-                            className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
-                                }`}
+                            className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'}`}
                         >
                             <div className="flex items-start gap-2">
                                 {mention.type === 'issue' ? (
@@ -409,7 +408,7 @@ export function MentionDropdown({
     );
 }
 
-function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedProject[], onProjectSelected: (projectId: string) => void }) {
+export function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedProject[], onProjectSelected: (projectId: string) => void }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -418,7 +417,7 @@ function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedPro
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="mt-4 flex flex-col gap-3"
         >
-            <h2 className="text-sm text-zinc-500">Was this work done in the scope of an specific project?</h2>
+            <h2 className="text-sm text-zinc-500">Is this work done in the scope of an specific project?</h2>
             <div className="flex flex-wrap gap-2">
                 {projects.map(project => (
                     <button
