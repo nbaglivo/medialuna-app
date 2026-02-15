@@ -26,6 +26,7 @@ export default function FocusWindow({ workLogItem, focusedProjects, linearIssues
                     <CurrentFocusItem workLogItem={workInFocus} project={focusedProjects.find(p => p.id === workInFocus.projectId)!} />
                 ) : (
                     <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div layoutId="new-task-description">{workInFocus.description}</motion.div>
                         <ProjectSelector projects={focusedProjects} onProjectSelected={(projectId) => setWorkInFocus({ ...workInFocus, projectId })} />
                     </AnimatePresence>
                 )
@@ -220,12 +221,11 @@ function AddFocusTaskForm({ focusedProjects, linearIssues, onAddFocusTask }: { f
 
                 <div
                     style={{ gridArea: '1 / 1' }}
-                    className={
-                        `w-full rounded-md flex flex-col gap-4 opacity-0'}`
-                    }
+                    className="w-full rounded-md flex flex-col gap-4 opacity-0"
                 >
                     <motion.span
                         layout="position"
+                        layoutId="new-task-description"
                         transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
                         initial={false}
                         className='rounded-md opacity-0'
@@ -435,12 +435,18 @@ function UpdateTypeSelector() {
 
 function ProjectName({ project }: { project: UnifiedProject }) {
   return (
-    <Link href={project.url} target="_blank">        
-        <div className="flex flex-row items-center gap-2">
-            <ProjectIcon icon={project.icon} color={project.color} />
-            <span className="text-sm text-zinc-400" style={{ color: project.color as string }}>{project.name}</span>
-        </div>
-    </Link>
+    <motion.div
+        layoutId="project-name"
+        transition={{ layout: { duration: 0.4, ease: 'easeOut' } }}
+        initial={false}
+    >
+        <Link href={project.url} target="_blank">        
+            <div className="flex flex-row items-center gap-2">
+                <ProjectIcon icon={project.icon} color={project.color} />
+                <span className="text-sm text-zinc-400" style={{ color: project.color as string }}>{project.name}</span>
+            </div>
+        </Link>
+    </motion.div>
   )
 }
 

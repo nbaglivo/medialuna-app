@@ -418,26 +418,27 @@ export function ProjectSelector({ projects, onProjectSelected }: { projects: Uni
             className="mt-4 flex flex-col gap-3"
         >
             <h2 className="text-sm text-zinc-500">Is this work done in the scope of an specific project?</h2>
-            <div className="flex flex-wrap gap-2">
+            <motion.div className="flex flex-wrap gap-2">
                 {projects.map(project => (
-                    <button
+                    <motion.button
+                        layoutId="project-name"
                         key={project.id}
-                        className="flex gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer"
-                        style={{ borderColor: project.color ?? '#71717a' }}
+                        style={{ color: project.color ?? '#71717a' }}
+                        className="flex gap-2 px-3 py-1.5 text-xs transition-colors cursor-pointer"
                         onClick={() => onProjectSelected(project.id)}
                     >
                         <ProjectIcon icon={project.icon} color={project.color} />
-                        <span className="text-sm text-white">{project.name}</span>
-                    </button>
+                        <span className="text-sm">{project.name}</span>
+                    </motion.button>
                 ))}
                 <button
-                    className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-red-700/60 flex gap-2 items-center justify-center"
+                    className="px-3 py-1.5 text-xs transition-colors cursor-pointer flex gap-2 items-center justify-center"
                     onClick={() => onProjectSelected(UNPLANNED_PROJECT_ID)}
                 >
-                    <ExclamationTriangleIcon className="size-4" />
+                    <ExclamationTriangleIcon className="size-4 text-red-300/80" />
                     Unplanned work
                 </button>
-            </div>
+            </motion.div>
         </motion.div>
     );
 }
