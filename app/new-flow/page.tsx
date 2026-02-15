@@ -7,10 +7,14 @@ import { ExternalLinkIcon } from "@radix-ui/react-icons";
 export default async function NewFlowPage() {
     const linearData = await getLinearData();
     return (
-        <div className="flex flex-col w-full h-full mt-8 mx-32">
-            <ProjectList projects={linearData.projects} />
-
-            <DayOutcomes />
+        <div className="flex gap-6 w-full h-full mt-8 mx-32">
+            <div className="w-2/3">
+                <DayOutcomes />
+            </div>
+            <div className="w-1/3 flex flex-col gap-2">
+                <h2 className="text-lg font-medium">Projects in Focus</h2>
+                <ProjectList projects={linearData.projects} />
+            </div>
         </div>
     );
 }
@@ -18,7 +22,7 @@ export default async function NewFlowPage() {
 function ProjectList({ projects }: { projects: LinearProject[] }) {
     return (
         <div>
-            <ul className="flex flex-col gap-2 py-6">
+            <ul className="flex flex-col gap-2">
                 {projects.map((project) => (
                     <li
                         className="bg-surface-muted px-3 py-2 rounded-md flex items-center justify-between gap-2"
@@ -43,4 +47,3 @@ function ProjectList({ projects }: { projects: LinearProject[] }) {
         </div>
     );
 }
-
