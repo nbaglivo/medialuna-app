@@ -1,18 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef, RefObject } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useOnClickOutside } from 'usehooks-ts';
-import { TrashIcon, CheckIcon, VercelLogoIcon, PlayIcon } from '@radix-ui/react-icons';
+import { TrashIcon, CheckIcon, PlayIcon } from '@radix-ui/react-icons';
 import { type UnifiedProject } from '@/lib/task-source';
 import {
   type WorkLogItem,
-  upsertWorkLogItem,
   deleteWorkLogItem,
 } from '@/app/actions/day-plan';
-import { LinearIssue } from './types';
-import { RecordUnitOfWork } from './new-record-form';
-import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
 import ProjectIcon from './project-icon';
 
 type WorkLogProps = {
@@ -26,92 +20,6 @@ function escapeRegExp(value: string): string {
 }
 
 export default function WorkLog({ focusedProjects, workLogItems, openDayPlanId }: WorkLogProps) {
-  const recordUnitOfWorkRef = useRef<HTMLDivElement>(null);
-  useOnClickOutside(recordUnitOfWorkRef as RefObject<HTMLElement>, () => {
-    setIsRecordUnitOfWorkOpen(false);
-  });
-
-  const [isLoadingIssues, setIsLoadingIssues] = useState(false);
-  const [isRecordUnitOfWorkOpen, setIsRecordUnitOfWorkOpen] = useState(false);
-  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
-
-  // Load Linear issues when focused projects change
-  useEffect(() => {
-    if (focusedProjects.length > 0) {
-      loadLinearIssues();
-    }
-  }, [focusedProjects]);
-
-  const onWorkLogAdded = async (newItem: WorkLogItem) => {
-    const projectSource = newItem.projectId
-      ? focusedProjects.find(project => project.id === newItem.projectId)?.source ?? null
-      : null;
-
-    await upsertWorkLogItem({
-      dayPlanId: openDayPlanId,
-      item: {
-        id: newItem.id,
-        description: newItem.description,
-        timestamp: newItem.timestamp,
-        projectId: newItem.projectId,
-        projectSource,
-        unplannedReason: newItem.unplannedReason,
-        mentionedIssues: newItem.mentionedIssues,
-        durationMinutes: newItem.duration ?? null,
-      },
-    });
-  };
-
-  const loadLinearIssues = async () => {
-    setIsLoadingIssues(true);
-    try {
-      const response = await fetch('/api/linear/issues');
-      if (response.ok) {
-        const data = await response.json();
-        const issues: LinearIssue[] = data.issues || [];
-        
-        // Filter to only issues from focused projects if they have projects assigned
-        // Otherwise show all issues (since many Linear issues don't have projects)
-        const focusedProjectNames = focusedProjects.map(p => p.name.toLowerCase());
-        
-        const filteredIssues = issues.filter(issue => {
-          // If issue has no project, include it (show all unassigned issues)
-          if (!issue.project?.name) {
-            return true;
-          }
-          
-          // If issue has a project, check if it matches focused projects
-          const issueProjectName = issue.project.name.toLowerCase();
-          return focusedProjectNames.some(focusedName => {
-            return issueProjectName === focusedName || 
-                   issueProjectName.includes(focusedName) ||
-                   focusedName.includes(issueProjectName);
-          });
-        });
-
-        // Sort: in progress first, then by identifier
-        const sortedIssues = filteredIssues.sort((a, b) => {
-          const aStateName = a.state?.name?.toLowerCase() || '';
-          const bStateName = b.state?.name?.toLowerCase() || '';
-          
-          const aInProgress = aStateName.includes('progress') || aStateName === 'in progress';
-          const bInProgress = bStateName.includes('progress') || bStateName === 'in progress';
-          
-          if (aInProgress && !bInProgress) return -1;
-          if (!aInProgress && bInProgress) return 1;
-          
-          return a.identifier.localeCompare(b.identifier);
-        });
-
-        setLinearIssues(sortedIssues);
-      }
-    } catch (error) {
-      console.error('Failed to load Linear issues:', error);
-    } finally {
-      setIsLoadingIssues(false);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     try {
       await deleteWorkLogItem({ dayPlanId: openDayPlanId, itemId: id });
@@ -127,31 +35,7 @@ export default function WorkLog({ focusedProjects, workLogItems, openDayPlanId }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-
-      <AnimatePresence>
-        {isRecordUnitOfWorkOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50"
-          />
-        )}
-      </AnimatePresence>
-
-      {isRecordUnitOfWorkOpen && (
-        <div ref={recordUnitOfWorkRef}>
-          <RecordUnitOfWork
-            linearIssues={linearIssues}
-            focusedProjects={focusedProjects}
-            onWorkLogAdded={onWorkLogAdded}
-            onClose={() => setIsRecordUnitOfWorkOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* Work Items List */}
-      <div className="border border-zinc-500/10 p-6 rounded-lg flex-1 min-h-0 overflow-y-auto ">
+      <div className="flex-1 min-h-0 overflow-y-auto ">
         <div className="overflow-y-auto h-full relative gap-2 flex flex-col-reverse justify-end">
           <AnimatePresence mode="popLayout" initial={false}>
             { workLogItems.length === 0 && (
@@ -340,4 +224,3 @@ function UnitOfWorkRecord({ item, project, onDelete }: { item: WorkLogItem, proj
     </div>
   );
 }
-
