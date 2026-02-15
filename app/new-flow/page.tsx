@@ -3,13 +3,16 @@ import { getLinearData } from "../actions/linear";
 import ProjectIcon from "@/components/project-icon";
 import DayOutcomes from "./day-outcomes";
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
+import { getOpenGoalSet } from "@/lib/goal-sets";
 
 export default async function NewFlowPage() {
     const linearData = await getLinearData();
+    const openGoalSet = await getOpenGoalSet();
+    console.log('openGoalSet', openGoalSet);
     return (
         <div className="flex gap-6 w-full h-full mt-8 mx-32">
             <div className="w-2/3">
-                <DayOutcomes />
+                <DayOutcomes openGoalSet={openGoalSet} />
             </div>
             <div className="w-1/3 flex flex-col gap-2">
                 <h2 className="text-lg font-medium">Projects in Focus</h2>

@@ -1,56 +1,87 @@
 'use client';
 
-import { PlayIcon } from "@radix-ui/react-icons";
+import { PlayIcon, TrashIcon } from "@radix-ui/react-icons";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState } from "react";
+import { GoalSetWithGoals } from "@/lib/goal-sets";
+import { closeGoalSet, createGoal, openNewGoalSet } from "./actions";
 
-export default function DayOutcomes() {
-    const [dayOutcomes, setDayOutcomes] = useState<string[]>([]);
-    const [isEditing, setIsEditing] = useState<boolean>(true);
+export default function DayOutcomes({ openGoalSet }: { openGoalSet: GoalSetWithGoals | null }) {
 
-    const finishEditing = (dayOutcomes: string[]) => {
-        setDayOutcomes(dayOutcomes);
-        setIsEditing(false);
+    const finishEditing = async (dayOutcomes: string[]) => {
+        const goalSet = await openNewGoalSet();
+        for (const outcome of dayOutcomes) {
+            await createGoal(goalSet.id, {
+                text: outcome
+            });
+        }
     };
 
     return (
         <div className="bg-surface-muted h-full p-4 rounded-md">
             <AnimatePresence mode="popLayout" initial={false}>
-
-            {isEditing ? (
-                <DayOutcomesEditor onFinishEditing={finishEditing} />
-            ) : (
-                <DayOutcomesDisplay dayOutcomes={dayOutcomes} />
-            )}
+                {openGoalSet === null ? (
+                    <DayOutcomesEditor onFinishEditing={finishEditing} />
+                ) : (
+                    <DayOutcomesDisplay openGoalSet={openGoalSet} />
+                )}
             </AnimatePresence>
         </div>
     );
 }
 
-export function DayOutcomesDisplay({ dayOutcomes }: { dayOutcomes: string[] }) {
+export function DayOutcomesDisplay({ openGoalSet }: { openGoalSet: GoalSetWithGoals }) {
     return (
-        <div className="bg-surface-muted">
-            <div className="m-3">
-                <h2 className="text-lg font-medium">Today's goals</h2>
+        <div className="bg-surface-muted flex flex-col gap-2 justify-between h-full">
+            <div>
+                <div className="m-3 flex gap-6 items-center">
+                    <h2 className="text-lg font-medium">Today's goals</h2>
+                </div>
+                <ul>
+                    {openGoalSet.goals.map((goal, index) => (
+                        <motion.li
+                            layoutId={`day-outcome-${goal.id}`}
+                            key={`display-outcome-list-item-${goal.id}`}
+                            className="flex justify-between gap-2 p-2 group bg-zinc-900 rounded-md"
+                        >
+                            <div className="flex items-center gap-2">
+                                <ListBulletIcon />
+                                {goal.text}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => { }}
+                                    className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Delete task"
+                                >
+                                    <TrashIcon className="size-4" />
+                                </button>
+                                <Link
+                                    href={`/new-flow/focus/${goal.id}`}
+                                    className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Start tracking task time"
+                                >
+                                    <PlayIcon className="size-4" />
+                                </Link>
+                            </div>
+                        </motion.li>
+                    ))}
+                </ul>
             </div>
-            <ul>
-                {dayOutcomes.map((outcome, index) => (
-                    <motion.li
-                        layoutId={`day-outcome-${index}`}
-                        key={`display-outcome-list-item-${index}`}
-                        className="flex justify-between gap-2 p-2 group"
+            <motion.div
+                exit={{ opacity: 0, height: 0 }}
+                className="flex flex-col gap-2"
+            >
+                <div className="bg-zinc-900 p-3 shadow-lg flex justify-center items-center gap-2 w-full">
+                    <button
+                        className="bg-surface-muted py-2 px-4 rounded-md border border-zinc-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => closeGoalSet(openGoalSet.id)}
                     >
-                        <div className="flex items-center gap-2">
-                            <ListBulletIcon />
-                            {outcome}
-                        </div>
-                        <Link href={`/new-flow/focus?outcome=${outcome}`} className="cursor-pointer p-1 group-hover:opacity-100 opacity-0 transition-opacity duration-200">
-                            <PlayIcon className="size-4" />
-                        </Link>
-                    </motion.li>
-                ))}
-            </ul>
+                        Close this session
+                    </button>
+                </div>
+            </motion.div>
         </div>
     );
 }
@@ -82,7 +113,7 @@ export function DayOutcomesEditor({ onFinishEditing }: { onFinishEditing: (dayOu
         <div className="bg-transparent flex flex-col justify-between h-full">
             <div>
                 <div className="m-3">
-                    <h2 className="text-lg font-medium">What would make today a good day?</h2>
+                    <h2 className="text-lg font-medium">What would make today a great day?</h2>
                 </div>
 
                 <ul>
@@ -113,7 +144,7 @@ export function DayOutcomesEditor({ onFinishEditing }: { onFinishEditing: (dayOu
                             </motion.div>
                         )}
                     </AnimatePresence> */}
-                
+
                     <div
                         className="flex items-start gap-2"
                     >
@@ -136,21 +167,21 @@ export function DayOutcomesEditor({ onFinishEditing }: { onFinishEditing: (dayOu
                 </div>
             </div>
 
-                <motion.div
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex flex-col gap-2"
-                >
-                    <TipBox />
-                    <div className="bg-zinc-900 p-3 shadow-lg flex justify-center items-center gap-2 w-full">     
-                        <button
-                            className="bg-surface-muted py-2 px-4 rounded-md border border-zinc-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={finishEditing}
-                            disabled={dayOutcomes.length === 0}
-                        >
-                            I´m done. These are my goals for today.
-                        </button>
-                    </div>
-                </motion.div>
+            <motion.div
+                exit={{ opacity: 0, height: 0 }}
+                className="flex flex-col gap-2"
+            >
+                <TipBox />
+                <div className="bg-zinc-900 p-3 shadow-lg flex justify-center items-center gap-2 w-full">
+                    <button
+                        className="bg-surface-muted py-2 px-4 rounded-md border border-zinc-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={finishEditing}
+                        disabled={dayOutcomes.length === 0}
+                    >
+                        I´m done. These are my goals for today.
+                    </button>
+                </div>
+            </motion.div>
         </div>
     );
 }

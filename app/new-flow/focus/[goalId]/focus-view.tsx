@@ -1,17 +1,17 @@
 'use client';
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as Select from '@radix-ui/react-select';
 import { ChevronRightIcon } from "@radix-ui/react-icons";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { WorkLogItem } from "@/app/actions/day-plan";
 import { LinearProject } from "@/lib/linear";
 import ProjectIcon from "@/components/project-icon";
+import { Goal } from "@/lib/goal-sets";
 import './focus-view.css';
-import { useRouter } from "next/navigation";
 
-export default function FocusView({ workLogItem, project }: { workLogItem: WorkLogItem, project: LinearProject }) {
+export default function FocusView({ goal, project }: { goal: Goal, project: LinearProject }) {
     const router = useRouter();
     const [isTracking, setIsTracking] = useState(false);
     const [isWritingUpdate, setIsWritingUpdate] = useState(false);
@@ -37,12 +37,13 @@ export default function FocusView({ workLogItem, project }: { workLogItem: WorkL
     return (
       <div className="flex flex-col gap-4">
           <div className="flex flex-row items-center justify-between gap-2">
-              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2">
 
-              <h1 className="text-2xl font-bold">Focusing on {workLogItem.description}</h1>
-                  <ProjectName url={project.url} icon={project.icon ?? undefined} color={project.color ?? undefined} name={project.name} id={project.id} />
-              </div>
-              <RunningTimer isRunning={isTracking} />
+                <div className="text-sm text-zinc-400">Focusing on</div>
+                <h1 className="text-2xl font-bold">{goal.text}</h1>
+                    <ProjectName url={project.url} icon={project.icon ?? undefined} color={project.color ?? undefined} name={project.name} id={project.id} />
+                </div>
+                <RunningTimer isRunning={isTracking} />
           </div>
   
           <div className="text-sm flex items-center gap-2 text-zinc-400 hover:text-zinc-300 cursor-pointer">
