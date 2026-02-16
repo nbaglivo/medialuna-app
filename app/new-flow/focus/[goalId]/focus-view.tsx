@@ -155,7 +155,9 @@ function RunningTimer({ isRunning }: { isRunning: boolean }) {
     const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     const digits = formatted.split('');
     return (
-        <div className="flex flex-row items-center overflow-hidden inline-block font-mono border border-zinc-400 bg-zinc-400/20 rounded-md px-2 py-1">
+        <div
+            className="flex flex-row items-center overflow-hidden inline-block font-mono border border-purple-400 bg-purple-400/20 text-purple-400 rounded-md px-2 py-1"
+        >
             {digits.map((digit, i) => (
                 <AnimatePresence key={i} initial={false} mode="popLayout">
                     <motion.span
