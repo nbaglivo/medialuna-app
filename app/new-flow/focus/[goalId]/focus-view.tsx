@@ -35,7 +35,12 @@ export default function FocusView({ goal, project }: { goal: Goal, project: Line
     }
 
     return (
-        <div className="flex flex-col gap-4">
+        <motion.div 
+            className="flex flex-col gap-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
             <motion.div layout layoutId={`goal-container-${goal.id}`} className="flex flex-row items-center justify-between gap-2 bg-zinc-900 rounded-md p-2">
                 <div className="flex flex-col gap-2">
 
@@ -131,7 +136,7 @@ export default function FocusView({ goal, project }: { goal: Goal, project: Line
                     )}
                 </AnimatePresence>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
