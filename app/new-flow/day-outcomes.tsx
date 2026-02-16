@@ -3,7 +3,7 @@
 import { PlayIcon, TrashIcon } from "@radix-ui/react-icons";
 import { AnimatePresence, motion, stagger } from "motion/react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { GoalSetWithGoals } from "@/lib/goal-sets";
 import { closeGoalSet, createGoal, openNewGoalSet } from "./actions";
 
@@ -45,10 +45,16 @@ export function DayOutcomesDisplay({ openGoalSet }: { openGoalSet: GoalSetWithGo
                             key={`display-outcome-list-item-${goal.id}`}
                             className="flex justify-between gap-2 p-2 group bg-zinc-900 rounded-md"
                         >
-                            <div className="flex items-center gap-2">
+                            <motion.div
+                                layout
+                                layoutId={`goal-container-${goal.id}`}
+                                className="flex items-center gap-2"
+                            >
                                 <ListBulletIcon />
-                                {goal.text}
-                            </div>
+                                <motion.span
+                                    layoutId={`goal-title-${goal.id}`}
+                                >{goal.text}</motion.span>
+                            </motion.div>
                             <div className="flex items-center gap-2">
                                 {/* <button
                                     onClick={() => { }}

@@ -8,7 +8,6 @@ import { getOpenGoalSet } from "@/lib/goal-sets";
 export default async function NewFlowPage() {
     const linearData = await getLinearData();
     const openGoalSet = await getOpenGoalSet();
-    console.log('openGoalSet', openGoalSet);
     return (
         <div className="flex gap-6 w-full h-full mt-8 mx-32">
             <div className="w-2/3">
