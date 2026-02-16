@@ -1,4 +1,4 @@
-import { LinearClient } from "@linear/sdk";
+import { Issue, LinearClient, Project } from "@linear/sdk";
 
 export type LinearProject = {
   id: string;
@@ -24,18 +24,14 @@ export type LinearData = {
     projects: LinearProject[];
 };
 
-export async function getDataFromLinear(token: string): Promise<LinearData> {
+export async function getUser(token: string): Promise<LinearUser> {
     const client = new LinearClient({ accessToken: token });
-  
     const viewer = await client.viewer;
-    const user = { id: viewer.id, name: viewer.name, email: viewer.email };
-  
-    const projectsResponse = await client.projects({ first: 50 });
-    const rawProjects = projectsResponse.nodes ?? [];
+    return { id: viewer.id, name: viewer.name, email: viewer.email };
+}
 
-    console.log('rawProjects', rawProjects);
-  
-    const projects: LinearProject[] = rawProjects.map((project) => ({
+function mapLinearProject(project: Project): LinearProject {
+    return {
         id: project.id,
         name: project.name,
         description: project.description ?? null,
@@ -46,7 +42,85 @@ export async function getDataFromLinear(token: string): Promise<LinearData> {
         color: project.color ?? null,
         targetDate: project.targetDate ?? null,
         startDate: project.startDate ?? null,
-    }));
+    };
+}
+
+export async function getProjects(token: string): Promise<LinearProject[]> {
+    const client = new LinearClient({ accessToken: token });
   
-    return { user, projects };
+    const projectsResponse = await client.projects({ first: 50 });
+    const rawProjects = projectsResponse.nodes ?? [];
+  
+    return rawProjects.map(mapLinearProject);
+}
+
+export async function getProjectsByView(token: string, viewId: string): Promise<LinearProject[]> {
+    const client = new LinearClient({ accessToken: token });
+    const view = await client.customView(viewId);
+    const projects = await view.projects({ first: 50 });
+    return projects.nodes.map(mapLinearProject);
+}
+
+export async function getProjectViews(token: string): Promise<LinearProjectView[]> {
+    const client = new LinearClient({ accessToken: token });
+    const viewsConnection = await client.customViews({
+        filter: {
+            modelName: { eq: "Project" }
+        }
+    });
+    
+    const views = await viewsConnection.nodes;
+
+    console.log('views', views);
+
+    return views.map((view) => ({
+        ...view,
+        id: view.id,
+        name: view.name,
+        description: view.description ?? null,
+        icon: view.icon ?? null,
+        color: view.color ?? null,
+    }));
+}
+
+export async function getIssuesByProjects(token: string, projectIds: string[]): Promise<LinearIssue[]> {
+    const client = new LinearClient({ accessToken: token });
+    const issues = await client.issues({
+        filter: {
+            project: { id: { in: projectIds } }
+        }
+    });
+    return issues.nodes.map(mapLinearIssue);
+}
+
+export type LinearProjectView = {
+    id: string;
+    name: string;
+    description?: string | null;
+    icon?: string | null;
+    color?: string | null;
+};
+
+export type LinearIssue = {
+    id: string;
+    identifier: string;
+    title: string;
+    url: string;
+    priority?: number | null;
+    estimate?: number | null;
+    state?: {
+      name: string;
+    } | null;
+    project?: {
+      name: string;
+    } | null;
+};
+
+function mapLinearIssue(issue: Issue): LinearIssue {
+    return {
+        id: issue.id,
+        identifier: issue.identifier,
+        title: issue.title,
+        url: issue.url,
+    };
 }

@@ -5,12 +5,13 @@ import { type UnifiedProject } from '@/lib/task-source';
 import { UNPLANNED_PROJECT_ID } from '@/lib/unplanned-project';
 import { type WorkLogItem } from '@/app/actions/day-plan';
 import { LinearIssue } from './types';
-import { WORK_LOG_RECORD_PLACEHOLDER } from './translations';
+import { START_FOCUS_PLACEHOLDER } from './translations';
+import ProjectIcon from './project-icon';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 
 enum Step {
     ProvideDescription = 'provideDescription',
-    ProvideProject = 'provideProject',
-    Accept = 'accept'
+    ProvideProject = 'provideProject'
 }
 
 export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded, onClose }: { linearIssues: LinearIssue[], focusedProjects: UnifiedProject[], onWorkLogAdded: (newItem: WorkLogItem) => void, onClose: () => void }) {
@@ -31,7 +32,7 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedProjectId, step, showMentionDropdown]);
 
-    const handleAddTask = async () => {
+    const putTaskInFocus = async () => {
         const description = newTaskDescription.trim();
         if (!description) return;
 
@@ -165,12 +166,12 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
             return;
         }
 
-        setStep(Step.Accept);
+        putTaskInFocus();
     }
 
     function manuallySelectProject(projectId: string) {
         setSelectedProjectId(projectId);
-        setStep(Step.Accept);
+        putTaskInFocus();
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -227,7 +228,7 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
             `}
         >
             {/* Main Section */}
-            <div className={`px-4 w-full h-full ${step === Step.Accept ? '' : 'grid place-items-center'}`}>
+            <div className={`px-4 w-full h-full grid place-items-center`}>
                 {step === Step.ProvideDescription && (
                     <motion.input
                         ref={inputRef}
@@ -236,7 +237,7 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                         autoComplete='off'
                         value={newTaskDescription}
                         onChange={handleInputChange}
-                        placeholder={WORK_LOG_RECORD_PLACEHOLDER}
+                        placeholder={START_FOCUS_PLACEHOLDER}
                         style={{ gridArea: '1 / 1' }}
                         className="flex-1 w-full h-full bg-transparent text-white placeholder-zinc-500 outline-none z-10"
                     />
@@ -266,10 +267,6 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
                     <AnimatePresence>
                         {step === Step.ProvideProject && (
                             <ProjectSelector projects={focusedProjects} onProjectSelected={manuallySelectProject} />
-                        )}
-
-                        {step === Step.Accept && (
-                            <AcceptRecord onAddTask={handleAddTask} />
                         )}
                     </AnimatePresence>
                 </div>
@@ -309,36 +306,7 @@ export function RecordUnitOfWork({ linearIssues, focusedProjects, onWorkLogAdded
     );
 }
 
-function AcceptRecord({ onAddTask }: { onAddTask: () => void }) {
-    return (
-        <motion.div
-            layout
-            className="grid grid-cols-3 grid-cols-[3fr_1fr_1fr] gap-3 justify-center items-center"
-            initial={{ filter: 'blur(10px)', opacity: 0 }}
-            animate={{ filter: 'blur(0px)', opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-            <div className="text-xs text-zinc-500 text-center">
-                Want to start right away?
-            </div>
-            <button
-                className='cursor-pointer flex gap-2 items-center justify-center text-center rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
-                onClick={onAddTask}
-            >
-                Yes, start now
-            </button>
-            <button
-                className='cursor-pointer flex justify-center items-center gap-2 rounded-md border border-[#252525] px-3 py-1.5 text-xs transition-colors'
-                onClick={onAddTask}
-            >
-                Just log it
-            </button>
-        </motion.div>
-    );
-}
-
-function MentionDropdown({
+export function MentionDropdown({
     selectedMentionIndex,
     onSelectMention,
     onPickMention,
@@ -384,8 +352,7 @@ function MentionDropdown({
                                 onSelectMention(index);
                                 onPickMention(mention);
                             }}
-                            className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'
-                                }`}
+                            className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-purple-500/20' : 'hover:bg-[#252525]'}`}
                         >
                             <div className="flex items-start gap-2">
                                 {mention.type === 'issue' ? (
@@ -441,7 +408,7 @@ function MentionDropdown({
     );
 }
 
-function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedProject[], onProjectSelected: (projectId: string) => void }) {
+export function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedProject[], onProjectSelected: (projectId: string) => void }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -450,29 +417,34 @@ function ProjectSelector({ projects, onProjectSelected }: { projects: UnifiedPro
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="mt-4 flex flex-col gap-3"
         >
-            <h2 className="text-sm text-zinc-500">Was this work done in the scope of an specific project?</h2>
-            <div className="flex flex-wrap gap-2">
+            <h2 className="text-sm text-zinc-500">Is this work done in the scope of an specific project?</h2>
+            <motion.div className="flex flex-wrap gap-2">
                 {projects.map(project => (
-                    <button
+                    <motion.button
+                        layout="position"
+                        layoutId={`project-name-${project.id}`}
                         key={project.id}
-                        className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-purple-500/30"
+                        style={{ color: project.color ?? '#71717a' }}
+                        className="flex gap-2 px-3 py-1.5 text-xs transition-colors cursor-pointer"
                         onClick={() => onProjectSelected(project.id)}
                     >
-                        {project.name}
-                    </button>
+                        <ProjectIcon icon={project.icon} color={project.color} />
+                        <span className="text-sm">{project.name}</span>
+                    </motion.button>
                 ))}
                 <button
-                    className="rounded-md border px-3 py-1.5 text-xs transition-colors cursor-pointer border-red-700/30"
+                    className="px-3 py-1.5 text-xs transition-colors cursor-pointer flex gap-2 items-center justify-center"
                     onClick={() => onProjectSelected(UNPLANNED_PROJECT_ID)}
                 >
+                    <ExclamationTriangleIcon className="size-4 text-red-300/80" />
                     Unplanned work
                 </button>
-            </div>
+            </motion.div>
         </motion.div>
     );
 }
 
-type MentionOption = {
+export type MentionOption = {
     type: 'issue' | 'project';
     label: string;
     url: string;
