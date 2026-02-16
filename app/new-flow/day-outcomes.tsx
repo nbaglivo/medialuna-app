@@ -1,9 +1,9 @@
 'use client';
 
 import { PlayIcon, TrashIcon } from "@radix-ui/react-icons";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, stagger } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GoalSetWithGoals } from "@/lib/goal-sets";
 import { closeGoalSet, createGoal, openNewGoalSet } from "./actions";
 
@@ -50,20 +50,14 @@ export function DayOutcomesDisplay({ openGoalSet }: { openGoalSet: GoalSetWithGo
                                 {goal.text}
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
+                                {/* <button
                                     onClick={() => { }}
                                     className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
                                     title="Delete task"
                                 >
                                     <TrashIcon className="size-4" />
-                                </button>
-                                <Link
-                                    href={`/new-flow/focus/${goal.id}`}
-                                    className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                                    title="Start tracking task time"
-                                >
-                                    <PlayIcon className="size-4" />
-                                </Link>
+                                </button> */}
+                                <PlayLink goalId={goal.id} />
                             </div>
                         </motion.li>
                     ))}
@@ -86,7 +80,7 @@ export function DayOutcomesDisplay({ openGoalSet }: { openGoalSet: GoalSetWithGo
     );
 }
 
-export function DayOutcomesEditor({ onFinishEditing }: { onFinishEditing: (dayOutcomes: string[]) => void }) {
+function DayOutcomesEditor({ onFinishEditing }: { onFinishEditing: (dayOutcomes: string[]) => void }) {
     const [dayOutcomes, setDayOutcomes] = useState<string[]>([]);
     const [currentText, setCurrentText] = useState<string>('');
 
@@ -203,5 +197,38 @@ function TipBox() {
                 <div>{tips[0]}</div>
             </div>
         </div>
+    );
+}
+
+function PlayLink({ goalId }: { goalId: string }) {
+    const [isHovered, setIsHovered] = useState(false);
+
+    return (
+        <Link
+            href={`/new-flow/focus/${goalId}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="px-1 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10"
+            title="Start tracking task time"
+        >
+            <motion.div
+                layoutId="play-link"
+                layout
+                className="flex items-center gap-1 overflow-hidden"
+            >
+                <motion.span layout="position" layoutId="play-icon"><PlayIcon className="size-4" /></motion.span>
+                { isHovered && (
+                    <motion.span
+                        layoutId={`start-focus-text`}
+                        initial={{ opacity: 0, filter: 'blur(10px)' }}
+                        animate={{ opacity: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, transition: { duration: 0 } }}
+                        transition={{ duration: 0.1, ease: 'easeInOut' }}
+                    >
+                        Start
+                    </motion.span>
+                )}
+            </motion.div>
+        </Link>
     );
 }

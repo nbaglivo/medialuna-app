@@ -12,11 +12,43 @@ export default function TestPage() {
                 </div>
             </div> */}
 
-            <UnalomeSymbolStatic className="size-16" />
-            <UnalomeSymbol />
+            {/* <UnalomeSymbolStatic className="size-16" />
+            <UnalomeSymbol /> */}
+
+            <PlayLink goalId="123" />
         </div>
     );
 }
+
+function PlayLink({ goalId }: { goalId: string }) {
+    const letters = ['F', 'o', 'c', 'u', 's', ' ', 'o'];
+
+    return (
+        // <Link
+        //     href={`/new-flow/focus/${goalId}`}
+        //     // className="flex-shrink-0 flex items-center gap-1 p-1.5 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10"
+        //     title="Start tracking task time"
+        // >
+            <div
+                className="flex items-center gap-1"
+            >
+                {/* <PlayIcon className="size-4" /> */}
+                {letters.map((letter, index) => (
+                    <motion.span
+                        key={`letter-${letter}-${index}`}
+                        layoutId={`letter-${letter}-${index}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: index * 0.2 }}
+                    >
+                        {letter}
+                    </motion.span>
+                ))}
+            </div>
+        // </Link>
+    );
+}
+
 
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
