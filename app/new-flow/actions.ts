@@ -1,6 +1,13 @@
 "use server";
 
 import {
+  addUpdate as addUpdateCrud,
+  getOrCreateFocusSessionForGoal as getOrCreateFocusSessionForGoalCrud,
+  removeUpdate as removeUpdateCrud,
+  getFocusSessionWithUpdates as getFocusSessionWithUpdatesCrud,
+} from "@/lib/goal-focus-sessions";
+import type { AddUpdateInput } from "@/lib/goal-focus-sessions";
+import {
   closeGoalSet as closeGoalSetCrud,
   createGoal as createGoalCrud,
   deleteGoal as deleteGoalCrud,
@@ -49,4 +56,30 @@ export async function deleteGoal(id: string) {
   const result = await deleteGoalCrud(id);
   revalidatePath("/new-flow");
   return result;
+}
+
+export async function getOrCreateFocusSessionForGoal(goalId: string) {
+  return getOrCreateFocusSessionForGoalCrud(goalId);
+}
+
+export async function addFocusSessionUpdate(
+  sessionId: string,
+  input: AddUpdateInput,
+  goalId: string
+) {
+  const result = await addUpdateCrud(sessionId, input);
+  revalidatePath("/new-flow");
+  revalidatePath(`/new-flow/focus/${goalId}`);
+  return result;
+}
+
+export async function removeFocusSessionUpdate(updateId: string, goalId: string) {
+  const result = await removeUpdateCrud(updateId);
+  revalidatePath("/new-flow");
+  revalidatePath(`/new-flow/focus/${goalId}`);
+  return result;
+}
+
+export async function getFocusSessionWithUpdates(focusSessionId: string) {
+  return getFocusSessionWithUpdatesCrud(focusSessionId);
 }

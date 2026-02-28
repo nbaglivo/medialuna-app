@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getLinearData } from "@/app/actions/linear";
+import { getOrCreateFocusSessionForGoal } from "@/app/new-flow/actions";
 import FocusView from "./focus-view";
 import { notFound } from "next/navigation";
 import { getGoalById } from "@/lib/goal-sets";
@@ -15,7 +16,10 @@ export default async function FocusPage({ params }: { params: Promise<{ goalId: 
     const linearData = await getLinearData();
     const mockProject = linearData.connected ? linearData.projects[0] : null;
 
-    const goal = await getGoalById(goalId);
+    const [goal, session] = await Promise.all([
+        getGoalById(goalId),
+        getOrCreateFocusSessionForGoal(goalId),
+    ]);
 
     if (!goal) {
         return notFound();
@@ -23,7 +27,7 @@ export default async function FocusPage({ params }: { params: Promise<{ goalId: 
 
     return (
         <div className="flex flex-col justify-between gap-4 w-2/3 h-full mt-8 mx-32 bg-surface-muted p-4 rounded-md">
-            <FocusView goal={goal} project={mockProject as unknown as LinearProject} />
+            <FocusView goal={goal} session={session} project={mockProject as unknown as LinearProject} />
             <div className="flex justify-end">
                 <Link
                     href="/new-flow"

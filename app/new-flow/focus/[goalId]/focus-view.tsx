@@ -6,28 +6,49 @@ import { useRouter } from "next/navigation";
 import * as Select from '@radix-ui/react-select';
 import { ChevronRightIcon } from "@radix-ui/react-icons";
 import { AnimatePresence, motion } from "motion/react";
-import { LinearProject } from "@/lib/linear";
-import { Goal } from "@/lib/goal-sets";
+import { addFocusSessionUpdate } from "@/app/new-flow/actions";
 import ProjectIcon from "@/components/project-icon";
+import { Goal } from "@/lib/goal-sets";
+import type { GoalFocusSessionWithUpdates } from "@/lib/goal-focus-sessions";
+import type { LinearProject } from "@/lib/linear";
 import './focus-view.css';
 
-export default function FocusView({ goal, project }: { goal: Goal, project: LinearProject }) {
+const UPDATE_TYPES = ['stopped', 'finished', 'abandoned'] as const;
+const STATUS_COLORS: Record<typeof UPDATE_TYPES[number], string> = {
+    stopped: '#D6B500',
+    finished: '#48c05c',
+    abandoned: '#AA3F3F',
+};
+const UPDATE_TYPE_LABELS: Record<typeof UPDATE_TYPES[number], string> = {
+    stopped: 'Paused for now',
+    finished: "I'm done with this",
+    abandoned: 'I abandoned this',
+};
+
+export default function FocusView({ goal, session, project }: { goal: Goal; session: GoalFocusSessionWithUpdates; project: LinearProject | null }) {
     const router = useRouter();
     const [isTracking, setIsTracking] = useState(false);
     const [isWritingUpdate, setIsWritingUpdate] = useState(false);
-    const [updates, setUpdates] = useState<{ text: string, type: typeof UPDATE_TYPES[number] }[]>([]);
     const [updateText, setUpdateText] = useState('');
+    const [selectedType, setSelectedType] = useState<typeof UPDATE_TYPES[number]>('finished');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const onPostUpdate = () => {
-        const updateType = UPDATE_TYPES[0];
-        setUpdates([...updates, { text: updateText, type: updateType }]);
-        setUpdateText('');
-        setIsWritingUpdate(false);
+    const updates = session.updates;
+    const isSessionClosed = updates.length > 0 && ['finished', 'abandoned'].includes(updates[updates.length - 1]?.type ?? '');
 
-        if (updateType === 'Done') {
-            router.push('/new-flow');
+    const onPostUpdate = async () => {
+        setIsSubmitting(true);
+        try {
+            await addFocusSessionUpdate(session.id, { type: selectedType, note: updateText || null }, goal.id);
+            setUpdateText('');
+            setIsWritingUpdate(false);
+            if (selectedType === 'finished' || selectedType === 'abandoned') {
+                router.push('/new-flow');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
-    }
+    };
 
     const cancelUpdate = () => {
         setUpdateText('');
@@ -46,12 +67,12 @@ export default function FocusView({ goal, project }: { goal: Goal, project: Line
 
                     <div className="text-sm text-zinc-400">Focusing on</div>
                     <motion.h1 className="text-2xl font-bold" layoutId={`goal-title-${goal.id}`}>{goal.text}</motion.h1>
-                    <ProjectName url={project.url} icon={project.icon ?? undefined} color={project.color ?? undefined} name={project.name} id={project.id} />
+                    {project && <ProjectName url={project.url} icon={project.icon ?? undefined} color={project.color ?? undefined} name={project.name} id={project.id} />}
                 </div>
                 <RunningTimer isRunning={isTracking} />
             </motion.div>
 
-            <div className="text-sm flex items-center gap-2 text-zinc-400 hover:text-zinc-300 cursor-pointer">
+            <Link href={`/new-flow/focus/${goal.id}/${session.id}/updates`} className="text-sm flex items-center gap-2 text-zinc-400 hover:text-zinc-300 cursor-pointer">
                 <ChevronRightIcon className="size-4" />
                 See update history
                 <motion.span
@@ -70,72 +91,76 @@ export default function FocusView({ goal, project }: { goal: Goal, project: Line
                 >
                     ({updates.length})
                 </motion.span>
-            </div>
+            </Link>
 
-            <div>
-                <AnimatePresence initial={false} mode="popLayout">
-                    {!isWritingUpdate ? (
-                        <motion.button
-                            layoutId="write-update"
-                            style={{ borderRadius: '8px' }}
-                            className="flex p-2 text-sm hover:bg-zinc-500/10 transition-colors group-hover:opacity-100 border border-zinc-700"
-                            title="Write an update"
-                            onClick={() => setIsWritingUpdate(true)}
-                        >
-                            <motion.span
-                                layoutId="title"
-                                className="text-sm self-start placeholder"
+            {!isSessionClosed && (
+                <div>
+                    <AnimatePresence initial={false} mode="popLayout">
+                        {!isWritingUpdate ? (
+                            <motion.button
+                                layoutId="write-update"
+                                style={{ borderRadius: '8px' }}
+                                className="flex p-2 text-sm hover:bg-zinc-500/10 transition-colors group-hover:opacity-100 border border-zinc-700"
+                                title="Write an update"
+                                onClick={() => setIsWritingUpdate(true)}
                             >
-                                Write an update
-                            </motion.span>
-                        </motion.button>
-                    ) : (
-                        <motion.div
-                            layoutId="write-update"
-                            style={{ borderRadius: '8px' }}
-                            className="relative h-36 text-sm w-full border border-zinc-700 p-2 flex flex-col justify-between gap-2"
-                            transition={{ type: 'spring', bounce: 0, duration: 1 }}
-                        >
-                            <motion.span
-                                data-feedback={updateText ? "true" : "false"}
-                                layoutId="title"
-                                className="text-sm self-start placeholder absolute text-zinc-500"
+                                <motion.span
+                                    layoutId="title"
+                                    className="text-sm self-start placeholder"
+                                >
+                                    Write an update
+                                </motion.span>
+                            </motion.button>
+                        ) : (
+                            <motion.div
+                                layoutId="write-update"
+                                style={{ borderRadius: '8px' }}
+                                className="relative h-36 text-sm w-full border border-zinc-700 p-2 flex flex-col justify-between gap-2"
+                                transition={{ type: 'spring', bounce: 0, duration: 1 }}
                             >
-                                Write an update
-                            </motion.span>
-                            <textarea
-                                autoComplete="off"
-                                id="update-text"
-                                value={updateText}
-                                autoFocus
-                                onChange={(e) => setUpdateText(e.target.value)}
-                                className="w-full min-h-[80px] resize-y rounded-md border-0 bg-transparent text-sm text-zinc-300 placeholder:text-zinc-500 focus:outline-none focus:ring-0"
-                                rows={3}
-                            />
-                            <div className="flex flex-row items-center justify-between gap-2">
-                                <UpdateTypeSelector />
-                                <div className="flex flex-row items-center gap-2">
-                                    <motion.button
-                                        key="write-update-cancel"
-                                        className="hover:bg-zinc-700/50 cursor-pointer px-2 py-1 text-center rounded-md transition-colors group-hover:opacity-100"
-                                        title="Cancel"
-                                        onClick={() => cancelUpdate()}
-                                    >
-                                        Cancel
-                                    </motion.button>
-                                    <motion.button
-                                        className="hover:bg-zinc-700/50 cursor-pointer px-2 py-1 text-center rounded-md transition-colors group-hover:opacity-100"
-                                        title="Post"
-                                        onClick={() => onPostUpdate()}
-                                    >
-                                        Post Update
-                                    </motion.button>
+                                <motion.span
+                                    data-feedback={updateText ? "true" : "false"}
+                                    layoutId="title"
+                                    className="text-sm self-start placeholder absolute text-zinc-500"
+                                >
+                                    Write an update
+                                </motion.span>
+                                <textarea
+                                    autoComplete="off"
+                                    id="update-text"
+                                    value={updateText}
+                                    autoFocus
+                                    onChange={(e) => setUpdateText(e.target.value)}
+                                    className="w-full min-h-[80px] resize-y rounded-md border-0 bg-transparent text-sm text-zinc-300 placeholder:text-zinc-500 focus:outline-none focus:ring-0"
+                                    rows={3}
+                                />
+                                <div className="flex flex-row items-center justify-between gap-2">
+                                    <UpdateTypeSelector value={selectedType} onValueChange={setSelectedType} />
+                                    <div className="flex flex-row items-center gap-2">
+                                        <motion.button
+                                            key="write-update-cancel"
+                                            className="hover:bg-zinc-700/50 cursor-pointer px-2 py-1 text-center rounded-md transition-colors group-hover:opacity-100"
+                                            title="Cancel"
+                                            onClick={() => cancelUpdate()}
+                                            disabled={isSubmitting}
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                        <motion.button
+                                            className="hover:bg-zinc-700/50 cursor-pointer px-2 py-1 text-center rounded-md transition-colors group-hover:opacity-100"
+                                            title="Post"
+                                            onClick={() => onPostUpdate()}
+                                            disabled={isSubmitting}
+                                        >
+                                            Post Update
+                                        </motion.button>
+                                    </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
         </motion.div>
     );
 }
@@ -180,23 +205,9 @@ function RunningTimer({ isRunning }: { isRunning: boolean }) {
     );
 }
 
-const UPDATE_TYPES = ['Done', 'Paused', 'Cancelled'] as const;
-const STATUS_COLORS: Record<typeof UPDATE_TYPES[number], string> = {
-    Done: '#48c05c',
-    Paused: '#D6B500',
-    Cancelled: '#AA3F3F',
-};
-
-const UPDATE_TYPE_LABELS: Record<typeof UPDATE_TYPES[number], string> = {
-    Done: 'I´m done with this',
-    Paused: 'Paused for now',
-    Cancelled: 'I cancelled this',
-};
-
-function UpdateTypeSelector() {
-    const [value, setValue] = useState<typeof UPDATE_TYPES[number]>('Done');
+function UpdateTypeSelector({ value, onValueChange }: { value: typeof UPDATE_TYPES[number]; onValueChange: (v: typeof UPDATE_TYPES[number]) => void }) {
     return (
-        <Select.Root value={value} onValueChange={(v) => setValue(v as typeof UPDATE_TYPES[number])}>
+        <Select.Root value={value} onValueChange={(v) => onValueChange(v as typeof UPDATE_TYPES[number])}>
             <Select.Trigger
                 className={`inline-flex items-center gap-2 rounded-md border-0 bg-zinc-900 px-2 py-1 text-sm outline-none hover:opacity-90 data-[state=open]:opacity-90 min-w-0 cursor-pointer`}
                 style={{ color: STATUS_COLORS[value] }}
