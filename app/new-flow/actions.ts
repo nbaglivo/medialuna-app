@@ -5,6 +5,7 @@ import {
   getOrCreateFocusSessionForGoal as getOrCreateFocusSessionForGoalCrud,
   removeUpdate as removeUpdateCrud,
   getFocusSessionWithUpdates as getFocusSessionWithUpdatesCrud,
+  getGoalLatestState as getGoalLatestStateCrud,
 } from "@/lib/goal-focus-sessions";
 import type { AddUpdateInput } from "@/lib/goal-focus-sessions";
 import {
@@ -82,4 +83,8 @@ export async function removeFocusSessionUpdate(updateId: string, goalId: string)
 
 export async function getFocusSessionWithUpdates(focusSessionId: string) {
   return getFocusSessionWithUpdatesCrud(focusSessionId);
+}
+
+export async function getGoalLatestState(goalId: string) {
+  return getGoalLatestStateCrud(goalId);
 }

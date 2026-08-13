@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Goal, GoalInput, GoalSet, GoalSetWithGoals } from "./types";
+import { getGoalLatestState, GoalFocusSessionUpdate } from "../goal-focus-sessions";
 
 function mapGoalSet(row: {
   id: string;
@@ -29,6 +30,7 @@ function mapGoal(row: {
   issue_source: string | null;
   created_at: string;
   updated_at: string;
+  latestState?: GoalFocusSessionUpdate | null;
 }): Goal {
   return {
     id: row.id,
@@ -42,6 +44,7 @@ function mapGoal(row: {
     issueSource: row.issue_source ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    latestState: row.latestState ?? null,
   };
 }
 
@@ -68,11 +71,15 @@ export async function getOpenGoalSet(): Promise<GoalSetWithGoals | null> {
     .order("created_at", { ascending: true });
 
   if (goalsError) throw new Error(goalsError.message);
+  
+  const goalsWithLatestState = await Promise.all(goalsRows.map(async (goal) => {
+    const latestState = await getGoalLatestState(goal.id);
+    return mapGoal({ ...goal, latestState });
+  }));
 
   const goalSet = mapGoalSet(goalSetRow);
-  const goals = (goalsRows ?? []).map(mapGoal);
 
-  return { ...goalSet, goals };
+  return { ...goalSet, goals: goalsWithLatestState };
 }
 
 export async function closeGoalSet(goalSetId: string): Promise<{ ok: boolean }> {

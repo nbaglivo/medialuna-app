@@ -11,4 +11,5 @@ export {
   getFocusSessionWithUpdates,
   getOrCreateFocusSessionForGoal,
   removeUpdate,
+  getGoalLatestState,
 } from "./crud";

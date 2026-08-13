@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { PlayIcon } from "@radix-ui/react-icons";
-import { GoalSetWithGoals } from "@/lib/goal-sets";
-import { motion } from "motion/react";
+import { Goal, GoalSetWithGoals } from "@/lib/goal-sets";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { closeGoalSet } from "./actions";
 import ListBulletIcon from "./list-bullet-icon";
+import { UpdateType } from "@/lib/goal-focus-sessions";
 
 export default function GoalList({ openGoalSet }: { openGoalSet: GoalSetWithGoals }) {
     return (
@@ -20,28 +21,9 @@ export default function GoalList({ openGoalSet }: { openGoalSet: GoalSetWithGoal
                         <motion.li
                             layoutId={`day-outcome-${goal.id}`}
                             key={`display-outcome-list-item-${goal.id}`}
-                            className="flex justify-between gap-2 p-2 group bg-zinc-900 rounded-md"
+                            className="w-full bg-zinc-900 rounded-md"
                         >
-                            <motion.div
-                                layout
-                                layoutId={`goal-container-${goal.id}`}
-                                className="flex items-center gap-2"
-                            >
-                                <ListBulletIcon />
-                                <motion.span
-                                    layoutId={`goal-title-${goal.id}`}
-                                >{goal.text}</motion.span>
-                            </motion.div>
-                            <div className="flex items-center gap-2">
-                                {/* <button
-                                    onClick={() => { }}
-                                    className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                                    title="Delete task"
-                                >
-                                    <TrashIcon className="size-4" />
-                                </button> */}
-                                <PlayLink goalId={goal.id} />
-                            </div>
+                            <GoalListItem goal={goal} />
                         </motion.li>
                     ))}
                 </ul>
@@ -63,14 +45,99 @@ export default function GoalList({ openGoalSet }: { openGoalSet: GoalSetWithGoal
     );
 }
 
-function PlayLink({ goalId }: { goalId: string }) {
+function GoalListItem({ goal }: { goal: Goal }) {
     const [isHovered, setIsHovered] = useState(false);
+
+    const handleMouseEnter = () => {
+        setIsHovered(true);
+    };
+
+    const handleMouseLeave = () => {
+        setIsHovered(false);
+    };
+
+    return (
+        <motion.div
+            layout
+            layoutId={`goal-container-${goal.id}`}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="flex flex-col gap-2 p-2"
+        >
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">                        
+                    <motion.span layout><ListBulletIcon /></motion.span>
+                    <motion.span
+                        layoutId={`goal-title-${goal.id}`}
+                    >
+                        {goal.text}
+                    </motion.span>
+                </div>
+                <div className="flex justify-end gap-2">
+                {/* <button
+                    onClick={() => { }}
+                    className="flex-shrink-0 p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete task"
+                >
+                    <TrashIcon className="size-4" />
+                </button> */}
+                    <PlayLink goalId={goal.id} active={isHovered} state={goal.latestState?.type} />
+                </div>
+            </div>
+            <AnimatePresence mode="popLayout">
+                {isHovered && (
+                    <motion.span
+                        // layout="position"
+                        // layoutId={`goal-update-type-${goal.id}`}
+                        initial={{ opacity: 0, filter: 'blur(10px)' }}
+                        animate={{ opacity: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, filter: 'blur(10px)' }}
+                        transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    >
+                        {formatUpdateType(goal.latestState?.type)}
+                    </motion.span>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+}
+
+function formatUpdateType(type: UpdateType | undefined) {
+    switch (type) {
+        case 'start':
+            return  '[Started]';
+        case 'stopped':
+            return '[Stopped]';
+        case 'finished':
+            return '[Completed]';
+        case 'abandoned':
+            return '[Abandoned]';
+        default:
+            return '[No updates]';
+    }
+}
+
+function PlayLink({ goalId, state, active }: { goalId: string, state: UpdateType | undefined, active: boolean }) {
+
+    let label = 'Start';
+    switch (state) {
+        case 'start':
+            label = 'Resume';
+            break;
+        case 'stopped':
+            label = 'Resume';
+            break;
+        case 'finished':
+            label = 'Reopen';
+            break;
+        case 'abandoned':
+            label = 'Resume';
+            break;
+    }
 
     return (
         <Link
             href={`/new-flow/focus/${goalId}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             className="px-1 rounded-md text-zinc-500 hover:text-purple-400 hover:bg-purple-500/10"
             title="Start tracking task time"
         >
@@ -80,15 +147,15 @@ function PlayLink({ goalId }: { goalId: string }) {
                 className="flex items-center gap-1 overflow-hidden"
             >
                 <motion.span layout="position" layoutId={`play-icon-${goalId}`}><PlayIcon className="size-4" /></motion.span>
-                { isHovered && (
+                { active && (
                     <motion.span
                         layoutId={`start-focus-text-${goalId}`}
                         initial={{ opacity: 0, filter: 'blur(10px)' }}
                         animate={{ opacity: 1, filter: 'blur(0px)' }}
                         exit={{ opacity: 0, transition: { duration: 0 } }}
-                        transition={{ duration: 0.1, ease: 'easeInOut' }}
+                        transition={{ duration: 0.2, ease: 'easeInOut' }}
                     >
-                        Start
+                        {label}
                     </motion.span>
                 )}
             </motion.div>

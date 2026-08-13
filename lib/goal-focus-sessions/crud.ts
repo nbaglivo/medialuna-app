@@ -173,3 +173,29 @@ export async function removeUpdate(updateId: string): Promise<{ ok: boolean }> {
 
   return { ok: true };
 }
+
+export async function getGoalLatestState(goalId: string): Promise<GoalFocusSessionUpdate | null> {
+  const supabase = createServerSupabaseClient();
+
+  const { data: sessions, error: sessionsError } = await supabase
+    .from("goal_focus_sessions")
+    .select("id")
+    .eq("goal_id", goalId);
+
+  if (sessionsError) throw new Error(sessionsError.message);
+  if (!sessions || sessions.length === 0) return null;
+
+  const sessionIds = sessions.map((s) => s.id);
+
+  const { data: updatesRows, error: updatesError } = await supabase
+    .from("goal_focus_session_updates")
+    .select("id, session_id, type, note, feeling, created_at")
+    .in("session_id", sessionIds)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (updatesError) throw new Error(updatesError.message);
+
+  const update = updatesRows?.[0];
+  return update ? mapUpdate(update) : null;
+}

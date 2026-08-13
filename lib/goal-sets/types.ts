@@ -1,3 +1,5 @@
+import { GoalFocusSessionUpdate } from "../goal-focus-sessions";
+
 export type GoalState = "pending" | "in_progress" | "completed" | "cancelled";
 
 export type GoalSet = {
@@ -19,6 +21,7 @@ export type Goal = {
   issueSource: string | null;
   createdAt: string;
   updatedAt: string;
+  latestState: GoalFocusSessionUpdate | null;
 };
 
 export type GoalInput = {
